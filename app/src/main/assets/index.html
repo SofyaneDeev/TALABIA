@@ -5,11 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Talabia</title>
 <meta name="theme-color" content="#0f6b4f">
-<meta name="description" content="Orders from Instagram and WhatsApp, in one place.">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Talabia">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap">
 <style>
@@ -142,7 +137,8 @@ textarea{min-height:80px;resize:vertical}
 .login .logo i{font-style:normal;color:var(--accent)}
 .demo{background:var(--amber-soft);border-radius:14px;padding:12px 14px;font-size:14px;display:flex;flex-direction:column;gap:6px}
 .demo code{font-family:ui-monospace,Menlo,monospace;font-weight:700;background:var(--surface);padding:2px 6px;border-radius:6px}
-.err{color:var(--red);font-size:13.5px;font-weight:600}
+.err{color:var(--red);font-size:13.5px;font-weight:600;background:var(--red-soft);padding:8px 10px;border-radius:10px;animation:shake .4s var(--ease)}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:6}
 nav .in{max-width:460px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
 nav button{background:none;border:0;padding:9px 0 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted);position:relative}
@@ -151,12 +147,61 @@ nav button[aria-current="page"]{color:var(--accent);font-weight:700}
 nav .add .pb{width:44px;height:44px;border-radius:14px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;margin-top:-18px}
 nav .dot{position:absolute;top:6px;left:calc(50% + 6px);min-width:16px;height:16px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 4px}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.sync{width:10px;height:10px;border-radius:50%;background:var(--accent);flex:none}
+.sync.saving{background:var(--amber);animation:pulse 1s ease-in-out infinite}
+.sync.offline,.sync.auth{background:var(--red)}
+@keyframes pulse{50%{transform:scale(.6);opacity:.6}}
+.meter{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.meter span{display:block;height:100%;background:var(--ai);border-radius:4px;transition:width .6s var(--ease)}
+.card.pro{border-color:var(--saffron,#e7a92b);background:linear-gradient(180deg,var(--amber-soft),var(--surface) 60%)}
+.btn.busy{opacity:.7;pointer-events:none}
+/* ---------- motion & decoration ---------- */
+@keyframes shimmer{to{background-position:-200% 0}}
+.btn.ai.thinking{opacity:1;background:linear-gradient(90deg,var(--ai) 0%,#9b86ee 40%,var(--ai) 80%);background-size:200% 100%;animation:shimmer 1.2s linear infinite}
+:root{--ease:cubic-bezier(.2,.8,.2,1);--spring:cubic-bezier(.34,1.56,.64,1)}
+@keyframes inFwd{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:none}}
+@keyframes inBack{from{opacity:0;transform:translateX(-32px)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{opacity:0;transform:scale(.6)}70%{transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+@keyframes drift{to{-webkit-mask-position:56px 56px;mask-position:56px 56px}}
+@keyframes glow{0%{box-shadow:0 0 0 0 var(--ai)}60%{box-shadow:0 0 0 6px transparent}100%{box-shadow:none}}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,24px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+main.enter-fwd{animation:inFwd .34s var(--ease)}
+main.enter-back{animation:inBack .34s var(--ease)}
+main.enter-tab{animation:rise .3s var(--ease)}
+main[class*="enter-"] .list>*,main[class*="enter-"] .kpis>*,main[class*="enter-"] .todo>button,main[class*="enter-"] .stagger>*{animation:rise .42s var(--ease) both;animation-delay:calc(var(--i,0) * 45ms + 60ms)}
+main[class*="enter-"] .steps span.on{transform-origin:left;animation:grow .5s var(--ease) both;animation-delay:calc(var(--i,0) * 90ms + 150ms)}
+.btn,.chip,.order,.kpi,.todo button,.stepper button,.shopbtn,nav button{transition:transform .15s var(--ease),background-color .2s,box-shadow .2s}
+.btn:active,.chip:active,.order:active,.kpi.big:active,.todo button:active,.stepper button:active,.shopbtn:active{transform:scale(.97)}
+.order:hover{box-shadow:0 6px 18px -10px rgba(15,60,40,.35)}
+nav .in{position:relative}
+nav .ind{position:absolute;top:0;left:0;height:3px;border-radius:0 0 3px 3px;background:var(--accent);width:40px;transition:transform .45s var(--spring),width .3s var(--ease)}
+nav button[aria-current="page"] svg{animation:pop .4s var(--spring)}
+nav .add .pb{box-shadow:0 8px 18px -6px rgba(15,107,79,.55);transition:transform .2s var(--spring)}
+nav .add:active .pb{transform:scale(.9) rotate(90deg)}
+.toast.show{animation:toastIn .35s var(--spring)}
+input.auto,select.auto,textarea.auto{animation:glow .9s var(--ease) both}
+.hero{position:relative;overflow:hidden;background:var(--accent);color:var(--accent-ink);border-radius:20px;padding:18px 18px 20px;display:flex;flex-direction:column;gap:4px}
+.hero::before,.login::before{content:"";position:absolute;inset:0;background:currentColor;opacity:.1;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='black' stroke-width='1.4'%3E%3Crect x='17' y='17' width='22' height='22'/%3E%3Crect x='17' y='17' width='22' height='22' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='4'/%3E%3Cpath d='M0 0l6 6M56 0l-6 6M0 56l6-6M56 56l-6-6'/%3E%3C/g%3E%3C/svg%3E") repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='black' stroke-width='1.4'%3E%3Crect x='17' y='17' width='22' height='22'/%3E%3Crect x='17' y='17' width='22' height='22' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='4'/%3E%3Cpath d='M0 0l6 6M56 0l-6 6M0 56l6-6M56 56l-6-6'/%3E%3C/g%3E%3C/svg%3E") repeat;animation:drift 24s linear infinite;pointer-events:none}
+.hero h1{position:relative}
+.hero .sub{color:var(--accent-ink);opacity:.85;position:relative}
+.hero .wave{display:inline-block;transform-origin:70% 80%;animation:wiggle 1s var(--ease) .3s 2}
+.login{position:relative;color:var(--accent)}
+.login>*{position:relative;color:var(--ink)}
+.login .logo{animation:pop .6s var(--spring) both;color:var(--ink)}
+.login .card{animation:rise .5s var(--ease) .15s both}
+.brand i{display:inline-block;animation:pop .5s var(--spring) .2s both}
+.stepper span{transition:transform .2s var(--spring)}
+.stepper span.bump{transform:scale(1.35)}
+@media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <div class="app" id="app"></div>
-<nav aria-label="Main" id="nav" hidden><div class="in">
+<nav aria-label="Main" id="nav" hidden><div class="in"><span class="ind" id="navInd" aria-hidden="true"></span>
   <button type="button" data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>Today</button>
   <button type="button" data-tab="orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Orders</button>
   <button type="button" data-tab="add" class="add"><span class="pb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>New</button>
@@ -189,11 +234,72 @@ let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!S.shops||!S.accounts)S=seed();
 if(S.user&&!S.shops[S.user])S.user=null;
 const SH_=()=>S.shops[S.user];
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){};cloudPush()};
+
+/* ---------- online mode (Supabase): accounts, data saved online, AI server ----------
+   Fill CONFIG to switch the app online. Empty = everything stays on this phone. */
+const CONFIG=Object.assign({
+ url:"https://ggttwxcwlxjedlphgqvm.supabase.co",  // Supabase Project URL
+ anon:"sb_publishable_4h5LHbtPTf8wn3dC1FDcug_tWkvxA3M",  // Supabase publishable key (safe to ship in the app)
+ price:"79 DH / month",
+ payInfo:"CashPlus to Sofyane El Krid",      // how sellers pay you
+ support:"0614840696",      // WhatsApp number for Pro activation
+ ai:false         // set to true once the smart-fill function and ANTHROPIC_API_KEY are set up in Supabase
+},window.TALABIA_CONFIG||{});
+const CLOUD=!!(CONFIG.url&&CONFIG.anon)&&!window.claude;   // inside the Claude app the page cannot reach the server, so it stays on-device there
+const SKEY="talabia-session";
+let session=null;try{session=JSON.parse(localStorage.getItem(SKEY))}catch(e){}
+const saveSession=()=>{try{session?localStorage.setItem(SKEY,JSON.stringify(session)):localStorage.removeItem(SKEY)}catch(e){}};
+let profile=null,syncState="ok",pushTimer=null;
+const emailOf=ph=>ph+"@talabia.app";
+async function authCall(path,body){
+ const r=await fetch(CONFIG.url+"/auth/v1/"+path,{method:"POST",headers:{apikey:CONFIG.anon,"content-type":"application/json"},body:JSON.stringify(body)});
+ const j=await r.json().catch(()=>({}));return{ok:r.ok,status:r.status,j}}
+function takeSession(j){session={access:j.access_token,refresh:j.refresh_token,exp:Date.now()+((j.expires_in||3600)-60)*1000,uid:(j.user&&j.user.id)||(session&&session.uid)};saveSession()}
+async function token(){
+ if(!session)return null;if(Date.now()<session.exp)return session.access;
+ try{const r=await authCall("token?grant_type=refresh_token",{refresh_token:session.refresh});
+  if(r.ok){takeSession(r.j);return session.access}
+  if(r.status>=400&&r.status<500){session=null;saveSession()}}catch(e){}
+ return null}
+async function api(path,opt){opt=opt||{};const t=await token();if(!t)throw{code:"auth"};
+ const r=await fetch(CONFIG.url+path,Object.assign({},opt,{headers:Object.assign({apikey:CONFIG.anon,Authorization:"Bearer "+t,"content-type":"application/json"},opt.headers||{})}));
+ if(!r.ok)throw{code:"http",status:r.status};
+ const tx=await r.text();return tx?JSON.parse(tx):null}
+async function cloudLoad(phone){
+ const res=await Promise.all([api("/rest/v1/profiles?select=*"),api("/rest/v1/shop_data?select=data,updated_at")]);
+ profile=(res[0]&&res[0][0])||null;
+ const remote=res[1]&&res[1][0]&&res[1][0].data;
+ if(S.pending&&S.pending===phone&&S.shops[phone]){pushSoon=true}           // local changes not saved online yet: keep them
+ else if(remote&&Array.isArray(remote.products))S.shops[phone]=remote;
+ else{if(!S.shops[phone])S.shops[phone]=newShop();pushSoon=true}
+ let acc=S.accounts.find(a=>a.phone===phone);
+ if(!acc){acc={phone};S.accounts.push(acc)}
+ if(profile&&profile.shop)acc.shop=profile.shop;
+ try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+ if(pushSoon){pushSoon=false;cloudPush(true)}
+}
+let pushSoon=false,pushVer=0;
+function cloudPush(now){
+ if(!CLOUD||!session||!S.user||!S.shops[S.user])return;
+ clearTimeout(pushTimer);setSync("saving");
+ if(S.pending!==S.user){S.pending=S.user;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+ const ver=++pushVer;
+ pushTimer=setTimeout(async()=>{
+  try{await api("/rest/v1/shop_data?on_conflict=user_id",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=minimal"},
+    body:JSON.stringify({user_id:session.uid,data:S.shops[S.user],updated_at:new Date().toISOString()})});
+   if(ver===pushVer){S.pending=null;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}setSync("ok")}}
+  catch(e){setSync(e&&e.code==="auth"?"auth":"offline")}},now?0:1200)}
+addEventListener("online",()=>{if(syncState==="offline")cloudPush(true)});
+function setSync(st){syncState=st;const el=document.getElementById("sync");
+ if(el){el.className="sync "+st;el.title=SYNC_TXT[st];el.setAttribute("aria-label",SYNC_TXT[st])}}
+const SYNC_TXT={ok:"Saved online",saving:"Saving…",offline:"Offline, will save when back online",auth:"Log in again to keep saving"};
+function isPro(){if(!profile||profile.plan!=="pro")return false;return !profile.pro_until||profile.pro_until>=new Date().toISOString().slice(0,10)}
+function aiUsed(){if(!profile)return 0;return profile.ai_month===new Date().toISOString().slice(0,7)?profile.ai_used:0}
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const dh=n=>(+n||0).toLocaleString("fr-MA")+" DH";
 const ago=t=>{const d=Date.now()-t;return d<60*MIN?Math.max(1,Math.round(d/MIN))+" min":d<D?Math.round(d/3600000)+" h":Math.round(d/D)+" d"};
-const toast=m=>{const t=document.getElementById("toast");t.textContent=m;t.hidden=false;clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2800)};
+const toast=m=>{const t=document.getElementById("toast");t.textContent=m;t.hidden=false;t.classList.remove("show");void t.offsetWidth;t.classList.add("show");clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2800)};
 const refusedBefore=o=>SH_().orders.filter(x=>x.phone===o.phone&&x.id!==o.id&&x.status==="refused").length;
 const shop=()=>(S.accounts.find(a=>a.phone===S.user)||{}).shop||"My shop";
 const prod=id=>SH_().products.find(p=>p.id===id);
@@ -201,7 +307,9 @@ const stockCls=p=>p.stock<=0?"out":p.stock<LOW?"low":"ok";
 const stockTxt=p=>p.stock<=0?"Out of stock":p.stock<LOW?`Only ${p.stock} left`:`${p.stock} in stock`;
 let route={tab:"today"},filter="all",authMode=S.accounts.length?"login":"signup",editProd=null,priceTouched=false,newSrc="ig";
 const app=document.getElementById("app"),nav=document.getElementById("nav");
-const go=r=>{route=r;render();scrollTo(0,0)};
+const DEEP=["detail","account"];
+let anim=null;
+const go=r=>{const a=DEEP.includes(route.tab),b=DEEP.includes(r.tab);anim=b&&!a?"fwd":a&&!b?"back":"tab";route=r;render();scrollTo(0,0)};
 
 /* ---------- smart fill: names list, cities, address words, catalog keywords (free, runs on the phone) ---------- */
 function ruleParse(txt){
@@ -239,23 +347,86 @@ function ruleParse(txt){
  if(qm)qty=+(qm[1]||qm[2]);else for(const [w,q] of Object.entries(QTYW))if(new RegExp("\\b"+w+"\\b").test(n)){qty=q;break}
  return{name,phone,city,address,productId:best?best.id:"",qty:Math.max(1,Math.min(qty,50))};
 }
-function smartParse(txt){return{data:ruleParse(txt)}}
+/* ---------- AI smart fill ----------
+   1) inside the Claude app: Claude through the page's own access
+   2) in the Android app: the Claude API with the seller's key (saved on this phone only)
+   3) otherwise: the built-in rules above */
+const AI_MODEL="claude-haiku-5-5";
+let samplePromise=null,aiBlocked=false;
+function getSample(){if(!samplePromise)samplePromise=(window.claude&&window.claude.use)?window.claude.use("sample").catch(()=>null):Promise.resolve(null);return samplePromise}
+function aiPrompt(txt){
+ const catalog=SH_().products.map(p=>({id:p.id,name:p.name,price:p.price,words:p.kw}));
+ return `You read a customer's message sent to a small online shop in Morocco and extract the order.
+The message can mix Moroccan Darija (in Latin letters with numbers like 3, 7, 9 — or in Arabic script), French, Arabic and English, with typos and in any order.
+The shop's products (JSON): ${JSON.stringify(catalog)}
+Reply with ONLY one JSON object and nothing else:
+{"name": the customer's name (first and family name if given; never a product, city or street) or null,
+ "phone": Moroccan number as 10 digits starting with 05, 06 or 07 (convert +212 or 00212 to 0) or null,
+ "city": Moroccan city in its usual French spelling (e.g. Casablanca, Fès, Tétouan, Marrakech) or null,
+ "address": delivery address without the city and name: neighborhood (hay/quartier), street (zanqa/rue/bd), building, apartment, lot, number, landmark — or null,
+ "productId": the id of the catalog product the customer wants, or null if none matches,
+ "productAsked": what the customer asked for in their own words if no catalog product matches, else null,
+ "qty": number of items (Darija: wa7d=1, joj/jouj/zouj=2, tlata=3, rb3a=4), default 1,
+ "note": short useful details for the seller such as size, color, delivery time or a question the customer asked, else null}
+Message:
+"""${String(txt).slice(0,2500)}"""`;
+}
+function cleanAI(r,txt){
+ if(!r||typeof r!=="object")return null;
+ const out={name:r.name?String(r.name).trim():"",phone:r.phone?normPhone(r.phone):"",city:r.city?String(r.city).trim():"",address:r.address?String(r.address).trim():"",
+  productId:r.productId&&prod(String(r.productId))?String(r.productId):"",productAsked:r.productAsked?String(r.productAsked).trim():"",
+  qty:Math.max(1,Math.min(parseInt(r.qty)||1,50)),note:r.note?String(r.note).trim():""};
+ if(out.phone&&!/^0[5-7]\d{8}$/.test(out.phone))out.phone="";
+ const rb=ruleParse(txt);for(const k of ["name","phone","city","address","productId"])if(!out[k])out[k]=rb[k];
+ return out;
+}
+function parseJSON(text){try{return JSON.parse(text)}catch(e){}const m=String(text).match(/\{[\s\S]*\}/);if(m){try{return JSON.parse(m[0])}catch(e){}}return null}
+async function smartParse(txt){
+ // 0) Talabia server (online mode)
+ if(CLOUD&&session&&CONFIG.ai){
+  try{const t=await token();if(!t)throw 0;
+   const catalog=SH_().products.map(p=>({id:p.id,name:p.name,price:p.price,words:p.kw}));
+   const r=await fetch(CONFIG.url+"/functions/v1/smart-fill",{method:"POST",headers:{apikey:CONFIG.anon,Authorization:"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({message:txt,catalog})});
+   const j=await r.json().catch(()=>({}));
+   if(r.ok){if(profile){profile.ai_month=new Date().toISOString().slice(0,7);profile.ai_used=j.used||profile.ai_used}
+    const d=cleanAI(j.result,txt);if(d)return{data:d,by:"ai",left:j.limit?Math.max(0,j.limit-j.used):null}}
+   if(r.status===402)return{data:ruleParse(txt),by:"rules",why:`You used your ${j.limit||20} free AI reads this month. Go Pro in My account for unlimited AI.`};
+   return{data:ruleParse(txt),by:"rules",why:"AI is not available right now, used the basic reader."};
+  }catch(e){return{data:ruleParse(txt),by:"rules",why:"No internet, used the basic reader."}}
+ }
+ // 1) Claude app
+ if(!aiBlocked){const sample=await getSample();
+  if(sample){try{const r=await sample.json(aiPrompt(txt),{modelTier:"quick"});const d=cleanAI(r,txt);if(d)return{data:d,by:"ai"}}
+   catch(e){if(e&&["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e.code))aiBlocked=true}}}
+ // 2) Claude API key saved on this phone
+ const key=getKey();
+ if(key){try{
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+   body:JSON.stringify({model:AI_MODEL,max_tokens:400,messages:[{role:"user",content:aiPrompt(txt)}]})});
+  if(res.ok){const j=await res.json();const text=(j.content||[]).map(c=>c.text||"").join("");const d=cleanAI(parseJSON(text),txt);if(d)return{data:d,by:"ai"}}
+  else return{data:ruleParse(txt),by:"rules",why:res.status===401?"Your AI key was refused. Check it in My account.":"AI is busy right now, used the basic reader."};
+ }catch(e){return{data:ruleParse(txt),by:"rules",why:"No internet, used the basic reader."}}}
+ // 3) basic rules
+ return{data:ruleParse(txt),by:"rules"};
+}
+function getKey(){try{return localStorage.getItem("talabia-ai-key")||""}catch(e){return""}}
+function setKey(k){try{k?localStorage.setItem("talabia-ai-key",k):localStorage.removeItem("talabia-ai-key")}catch(e){}}
 
 /* ---------- login ---------- */
 function vLogin(err){
  const signup=authMode==="signup";
  return `<div class="login wrap">
   <div><div class="logo">Talabia<i>.</i></div><p class="sub">Your orders from Instagram and WhatsApp, in one place.</p></div>
-  <form id="authForm" class="card" novalidate>
+  <div id="authForm" class="card">
    <h1>${signup?"Create your shop":"Log in"}</h1>
    ${signup?`<div class="field"><label class="label" for="aShop">Shop name</label><input id="aShop" placeholder="e.g. Lina Beauty" autocomplete="organization"></div>`:""}
    <div class="field"><label class="label" for="aPhone">Phone number</label><input id="aPhone" inputmode="tel" placeholder="06…" autocomplete="tel"></div>
    <div class="field"><label class="label" for="aPass">Password</label><input id="aPass" type="password" autocomplete="${signup?"new-password":"current-password"}" placeholder="${signup?"At least 6 characters":""}"></div>
    ${signup?`<div class="field"><label class="label" for="aPass2">Repeat password</label><input id="aPass2" type="password" autocomplete="new-password"></div>`:""}
    ${err?`<div class="err">${esc(err)}</div>`:""}
-   <button type="submit" class="btn">${signup?"Create my shop":"Log in"}</button>
+   <button type="button" class="btn" id="authBtn">${signup?"Create my shop":"Log in"}</button>
    <button type="button" class="btn link" id="switchAuth">${signup?"I already have an account":"New seller? Create your shop"}</button>
-  </form>
+  </div>
  </div>`}
 
 /* ---------- views ---------- */
@@ -270,12 +441,12 @@ function vToday(){
  const rate=closed.length?Math.round(100*c("refused")/closed.length):0;
  const lowP=SH_().products.filter(p=>p.stock<LOW).length;
  const np=SH_().products.length,no=SH_().orders.length;
- if(!np||!no)return `<div><h1>Welcome to ${esc(shop())} 👋</h1><p class="sub">Two steps to get started.</p></div>
-  <div class="card"><div class="label">Step 1</div><h2>Add your products</h2><p class="hint" style="margin:0">Name, price and how many you have in stock.</p>
+ if(!np||!no)return `<div class="hero"><h1>Welcome to ${esc(shop())} <span class="wave">👋</span></h1><p class="sub">Two steps to get started.</p></div>
+  <div class="stagger" style="display:flex;flex-direction:column;gap:16px"><div class="card"><div class="label">Step 1</div><h2>Add your products</h2><p class="hint" style="margin:0">Name, price and how many you have in stock.</p>
    ${np?`<div class="okbox">✓ ${np} product${np>1?"s":""} added</div>`:`<button type="button" class="btn" data-tab="products">Add my first product</button>`}</div>
   <div class="card"><div class="label">Step 2</div><h2>Create your first order</h2><p class="hint" style="margin:0">Copy a customer's message from Instagram or WhatsApp, paste it, and Smart fill does the rest.</p>
-   <button type="button" class="btn ${np?"":"ghost"}" data-tab="add" ${np?"":"disabled"}>Create an order</button></div>`;
- return `<div><h1>Salam 👋</h1><p class="sub">Here's what needs you today at ${esc(shop())}.</p></div>
+   <button type="button" class="btn ${np?"":"ghost"}" data-tab="add" ${np?"":"disabled"}>Create an order</button></div></div>`;
+ return `<div class="hero"><h1>Salam <span class="wave">👋</span></h1><p class="sub">Here's what needs you today at ${esc(shop())}.</p></div>
  <button type="button" class="btn" data-tab="add">+ New order from a message</button>
  <div class="kpis"><button type="button" class="kpi big" data-tab="cash"><span>Delivery companies owe you · see details →</span><strong>${dh(owed)}</strong></button>
   <div class="kpi warn"><span>Refusal rate</span><strong>${rate}%</strong></div>
@@ -314,6 +485,7 @@ function vDetail(){
   <div class="steps" aria-label="Progress">${STATUSES.map((s,i)=>`<span class="${o.status==="refused"?(i<3?"on":"bad"):(i<=idx?"on":"")}"></span>`).join("")}</div>
   <div><div class="label">Delivery address</div><div>${esc(o.address||"—")}<br><b>${esc(o.city)}</b></div></div>
   <div style="display:flex;justify-content:space-between;gap:10px"><span>${o.qty>1?o.qty+" × ":""}${esc(o.product)}</span><b>${dh(o.price)}</b></div>
+  ${o.note?`<div><div class="label">Note</div><div>${esc(o.note)}</div></div>`:""}
   <div class="hint">Carrier: ${esc(o.carrier)}</div>
   ${r?`<div class="warnbox">⚠ This number refused ${r} order${r>1?"s":""} before. Confirm carefully or ask for a deposit.</div>`:""}
  </div>
@@ -341,6 +513,7 @@ function vAdd(){
  <div id="stockNote"></div>
  <div class="row2"><div class="field"><label class="label" for="fPrice">Total price (DH)</label><input id="fPrice" inputmode="numeric"></div>
  <div class="field"><label class="label" for="fCarrier">Delivery company</label><select id="fCarrier">${CARRIERS.map(c=>`<option>${c}</option>`).join("")}</select></div></div>
+ <div class="field"><label class="label" for="fNote">Note (size, color, delivery time…)</label><input id="fNote" autocomplete="off"></div>
  <div id="dupWarn"></div>
  <button type="button" class="btn" id="saveOrder">Save order</button>`}
 
@@ -377,7 +550,8 @@ function vCash(){
 let confirmDelete=false;
 function vAccount(){
  return `<button type="button" class="back" data-tab="today">← Back</button>
- <div><h1>My account</h1><p class="sub">Free plan</p></div>
+ <div><h1>My account</h1><p class="sub">${CLOUD&&CONFIG.ai&&isPro()?"Pro plan":"Free plan"}</p></div>
+ ${CLOUD&&CONFIG.ai?planCard():""}
  <div class="card"><div class="label">Shop</div><div><b>${esc(shop())}</b><br><span class="hint">Phone: ${esc(S.user)}</span></div><button type="button" class="btn ghost" id="logout">Log out</button></div>
  <div class="card"><h2>How it works</h2>
   <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px">
@@ -386,8 +560,29 @@ function vAccount(){
    <li>Paste it in <b>New order</b> and tap <b>Smart fill</b>. Check the purple fields and save.</li>
    <li>Send the confirmation with one tap and move the order along until you're paid.</li>
   </ol></div>
- <div class="card"><h2>Your data</h2><p class="hint" style="margin:0">For now your shop is saved in this browser on this phone only. Clearing the browser data or switching phones will lose it.</p>
+ ${CLOUD?"":`<div class="card"><h2>✨ AI Smart fill</h2>
+  <p class="hint" style="margin:0">Inside the Claude app, AI works by itself (Claude asks your permission the first time).</p>
+  <p class="hint" style="margin:0">In the Android app, add a Claude API key from console.anthropic.com. It stays on this phone only. Each message read costs a very small amount on your Anthropic account.</p>
+  ${getKey()?`<div class="okbox">✓ AI key saved (…${esc(getKey().slice(-4))})</div><button type="button" class="btn ghost" id="keyDel">Remove key</button>`:
+  `<div class="field"><label class="label" for="aiKey">Claude API key</label><input id="aiKey" type="password" placeholder="sk-ant-…" autocomplete="off"></div><button type="button" class="btn ai" id="keySave">Save key</button>`}</div>`}
+ <div class="card"><h2>Your data</h2><p class="hint" style="margin:0">${CLOUD?"Your shop is saved online. Log in with your phone number on any phone to find it.":"For now your shop is saved in this browser on this phone only. Clearing the browser data or switching phones will lose it."}</p>
   ${confirmDelete?`<div class="warnbox">Delete all products and orders of ${esc(shop())}? This can't be undone.</div><div class="row2"><button type="button" class="btn ghost" id="delNo">Cancel</button><button type="button" class="btn red" id="delYes">Delete everything</button></div>`:`<button type="button" class="btn red" id="delAsk">Delete my shop data</button>`}</div>`}
+
+function planCard(){
+ if(isPro())return `<div class="card"><div class="label">Plan</div><h2>⭐ Pro</h2><p class="hint" style="margin:0">Unlimited AI Smart fill.${profile&&profile.pro_until?` Active until ${esc(profile.pro_until)}.`:""}</p></div>`;
+ const used=aiUsed(),lim=20;
+ return `<div class="card"><div class="label">Plan</div><h2>Free</h2>
+  <div class="hint">AI reads this month: <b>${used} / ${lim}</b></div>
+  <div class="meter"><span style="width:${Math.min(100,used/lim*100)}%"></span></div></div>
+ <div class="card pro"><h2>⭐ Go Pro · ${esc(CONFIG.price)}</h2>
+  <ul style="margin:0;padding-left:18px"><li>Unlimited AI Smart fill</li><li>Priority help on WhatsApp</li></ul>
+  <div class="label">How to upgrade</div>
+  <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+   <li>Pay ${esc(CONFIG.price)}${CONFIG.payInfo?": "+esc(CONFIG.payInfo.replace(/\.+$/,"")):""}.</li>
+   <li>Send your Talabia phone number (<b>${esc(S.user)}</b>)${CONFIG.support?` on WhatsApp to <b>${esc(CONFIG.support)}</b>`:""}.</li>
+   <li>Pro turns on within 24 hours. Then tap <b>I paid, check my plan</b>.</li></ol>
+  ${CONFIG.support?`<a class="btn wa" href="https://wa.me/212${esc(CONFIG.support.replace(/^0/,""))}?text=${encodeURIComponent("Salam, I paid for Talabia Pro. My Talabia number: "+S.user)}" target="_blank" rel="noopener">Message on WhatsApp</a>`:""}
+  <button type="button" class="btn ghost" id="refreshPlan">I paid, check my plan</button></div>`}
 
 /* ---------- render ---------- */
 function render(){
@@ -395,14 +590,33 @@ function render(){
  nav.hidden=false;
  const views={today:vToday,orders:vOrders,add:vAdd,cash:vCash,detail:vDetail,account:vAccount,products:vProducts};
  const name=shop();
- app.innerHTML=`<header class="wrap"><div class="brand">Talabia<i>.</i></div><button type="button" class="shopbtn" data-tab="account"><span class="av">${esc(name.slice(0,1).toUpperCase())}</span>${esc(name)}</button></header>
+ app.innerHTML=`<header class="wrap"><div class="brand">Talabia<i>.</i></div><div style="display:flex;align-items:center;gap:8px;min-width:0">${CLOUD?`<span id="sync" class="sync ${syncState}" title="${SYNC_TXT[syncState]}" aria-label="${SYNC_TXT[syncState]}"></span>`:""}<button type="button" class="shopbtn" data-tab="account"><span class="av">${esc(name.slice(0,1).toUpperCase())}</span>${esc(name)}</button></div></header>
  <main class="wrap" id="view">${views[route.tab]()}</main>`;
  document.querySelectorAll("nav button").forEach(b=>b.removeAttribute("aria-current"));
  const t={detail:"orders",account:"today"}[route.tab]||route.tab;
- document.querySelector(`nav button[data-tab="${t}"]`)?.setAttribute("aria-current","page");
+ {const nb=document.querySelector(`nav button[data-tab="${t}"]`);if(nb)nb.setAttribute("aria-current","page")}
  const low=SH_().products.filter(p=>p.stock<LOW).length,sd=document.getElementById("stockDot");sd.hidden=!low;sd.textContent=low;
  if(route.tab==="add")wireForm();
+ const main=document.getElementById("view");
+ if(anim&&main){main.classList.add("enter-"+anim);
+  main.querySelectorAll(".list,.kpis,.todo,.stagger,.steps").forEach(g=>[...g.children].forEach((c,i)=>c.style.setProperty("--i",Math.min(i,10))));
+  countUp(main)}
+ anim=null;
+ moveInd();
 }
+function moveInd(){const ind=document.getElementById("navInd"),cur=document.querySelector('nav button[aria-current="page"]');
+ if(!ind)return;if(!cur){ind.style.opacity=0;return}ind.style.opacity=1;
+ const w=28;ind.style.width=w+"px";ind.style.transform=`translateX(${cur.offsetLeft+cur.offsetWidth/2-w/2}px)`}
+addEventListener("resize",moveInd);
+function countUp(root){
+ if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+ root.querySelectorAll(".kpi strong,.total strong").forEach(el=>{
+  const txt=el.textContent,num=parseFloat(txt.replace(/[^\d.,-]/g,"").replace(/[\s\u202f\u00a0]/g,"").replace(",","."));
+  if(!(num>0))return;const suf=/DH$/.test(txt)?"dh":/%$/.test(txt)?"%":"";
+  const t0=performance.now(),dur=700;
+  const step=t=>{const k=Math.min(1,(t-t0)/dur),v=Math.round(num*(1-Math.pow(1-k,3)));
+   el.textContent=suf==="dh"?dh(v):suf==="%"?v+"%":v;if(k<1)requestAnimationFrame(step);else el.textContent=txt};
+  requestAnimationFrame(step)})}
 
 /* ---------- order form logic ---------- */
 const $=id=>document.getElementById(id);
@@ -412,7 +626,7 @@ function wireForm(){
  $("fProduct").addEventListener("change",()=>{priceTouched=false;recalc()});
  $("fQty").addEventListener("input",()=>{priceTouched=false;recalc()});
  $("fPrice").addEventListener("input",()=>{priceTouched=true});
- ["fName","fPhone","fCity","fAddress","fProduct","fQty","fPrice"].forEach(id=>$(id).addEventListener("input",()=>$(id).classList.remove("auto")));
+ ["fName","fPhone","fCity","fAddress","fProduct","fQty","fPrice","fNote"].forEach(id=>$(id).addEventListener("input",()=>$(id).classList.remove("auto")));
 }
 function recalc(){
  const p=prod($("fProduct").value),q=Math.max(1,+$("fQty").value||1);
@@ -425,17 +639,28 @@ function recalc(){
 }
 function dupCheck(){const p=$("fPhone").value.replace(/\D/g,"");const n=SH_().orders.filter(o=>o.phone===p&&o.status==="refused").length;
  $("dupWarn").innerHTML=n?`<div class="warnbox">⚠ This number refused ${n} order${n>1?"s":""} before.</div>`:""}
-function runFill(){
+let filling=false;
+async function runFill(){
  const txt=$("paste").value.trim();
  if(!txt){toast("Paste the customer's message first");return}
- const {data}=smartParse(txt);
- const set=(id,v)=>{if(v!==""&&v!=null){$(id).value=v;$(id).classList.add("auto")}};
+ if(filling)return;filling=true;
+ const btn=$("fill");btn.disabled=true;btn.classList.add("thinking");btn.textContent="✨ AI is reading the message…";
+ $("fillNote").innerHTML="";
+ let res;try{res=await smartParse(txt)}catch(e){res={data:ruleParse(txt),by:"rules"}}
+ filling=false;
+ if(route.tab!=="add"||!$("fill"))return;
+ btn.disabled=false;btn.classList.remove("thinking");btn.textContent="✨ Smart fill";
+ const data=res.data;
+ ["fName","fPhone","fCity","fAddress","fProduct","fQty","fPrice","fNote"].forEach(id=>$(id).classList.remove("auto"));
+ let n=0;const set=(id,v)=>{if(v!==""&&v!=null){$(id).value=v;$(id).style.animationDelay=(n++*90)+"ms";$(id).classList.add("auto")}};
  set("fName",data.name);set("fPhone",data.phone);set("fCity",data.city);set("fAddress",data.address);
  if(data.productId){$("fProduct").value=data.productId;$("fProduct").classList.add("auto")}
  set("fQty",data.qty);priceTouched=false;recalc();if(data.productId)$("fPrice").classList.add("auto");
+ set("fNote",data.note||"");
  dupCheck();
  const missing=[["name","name"],["phone","phone"],["city","city"],["address","address"],["productId","product"]].filter(([k])=>!data[k]).map(([,l])=>l);
- $("fillNote").innerHTML=`<div class="aibox">✨ Filled automatically. Purple fields were filled automatically, check them before saving.${missing.length?` Not found: ${missing.join(", ")}.`:""}</div>`;
+ const who=res.by==="ai"?"✨ Read by AI":"Read by the basic reader";
+ $("fillNote").innerHTML=`<div class="aibox">${who}. Check the purple fields before saving.${missing.length?` Not found: ${missing.join(", ")}.`:""}${data.productAsked?`<br>The customer asked for <b>${esc(data.productAsked)}</b>, which isn't in your products.`:""}${res.why?`<br>${esc(res.why)}`:""}${res.by==="ai"&&res.left!=null?`<br><span style="font-weight:500">${res.left} free AI read${res.left===1?"":"s"} left this month.</span>`:""}${res.by!=="ai"&&!res.why&&!CLOUD?`<br><span style="font-weight:500">For smarter reading, turn on AI in My account.</span>`:""}</div>`;
 }
 
 /* ---------- stock helpers ---------- */
@@ -443,29 +668,69 @@ function takeStock(o){const p=prod(o.productId);if(p){p.stock=Math.max(0,p.stock
 function returnStock(o){const p=prod(o.productId);if(p)p.stock+=o.qty}
 
 /* ---------- events ---------- */
-document.addEventListener("submit",e=>{
- if(e.target.id!=="authForm")return;e.preventDefault();
- const phone=$("aPhone").value.replace(/\D/g,""),pass=$("aPass").value;
+function normPhone(v){let d=String(v||"").replace(/\D/g,"");if(d.startsWith("00212"))d=d.slice(5);else if(d.startsWith("212"))d=d.slice(3);if(d.length===9&&/^[5-7]/.test(d))d="0"+d;return d}
+function doAuth(){if(CLOUD)return doAuthCloud();
+ const phone=normPhone($("aPhone").value),pass=$("aPass").value;
  if(authMode==="signup"){
   const shopN=$("aShop").value.trim();
   if(!shopN){route.err="Add your shop name.";render();return}
-  if(phone.length!==10||!/^0[5-7]/.test(phone)){route.err="Enter a 10-digit phone number starting with 05, 06 or 07.";render();return}
-  if(pass.length<6){route.err="Use a password of at least 6 characters.";render();return}
-  if(pass!==$("aPass2").value){route.err="The two passwords don't match.";render();return}
-  if(S.accounts.some(a=>a.phone===phone)){route.err="This number already has a shop. Log in instead.";authMode="login";render();return}
-  S.accounts.push({phone,pass,shop:shopN});S.shops[phone]=newShop();S.user=phone;save();route={tab:"today"};render();toast("Your shop is ready");return}
+  if(!/^0[5-7]\d{8}$/.test(phone)){route.err="Enter your phone number, for example 0612345678.";render();keep(shopN);return}
+  if(pass.length<6){route.err="Use a password of at least 6 characters.";render();keep(shopN,phone);return}
+  if(pass!==$("aPass2").value){route.err="The two passwords don't match.";render();keep(shopN,phone);return}
+  if(S.accounts.some(a=>a.phone===phone)){route.err="This number already has a shop. Log in instead.";authMode="login";render();$("aPhone").value=phone;return}
+  S.accounts.push({phone,pass,shop:shopN});S.shops[phone]=newShop();S.user=phone;save();anim="tab";route={tab:"today"};render();toast("Your shop is ready");return}
  const acc=S.accounts.find(a=>a.phone===phone&&a.pass===pass);
- if(!acc){route.err="Wrong phone number or password.";render();return}
+ if(!acc){route.err=S.accounts.some(a=>a.phone===phone)?"Wrong password.":"No shop with this number on this phone. Create your shop first.";render();$("aPhone").value=phone;return}
  if(!S.shops[phone])S.shops[phone]=newShop();
- S.user=phone;save();route={tab:"today"};render();toast("Welcome back");
-});
+ S.user=phone;save();anim="tab";route={tab:"today"};render();toast("Welcome back");
+}
+let authBusy=false;
+async function doAuthCloud(){
+ if(authBusy)return;
+ const phone=normPhone($("aPhone").value),pass=$("aPass").value,signup=authMode==="signup";
+ const shopN=signup?$("aShop").value.trim():"";
+ if(signup&&!shopN){route.err="Add your shop name.";render();return}
+ if(!/^0[5-7]\d{8}$/.test(phone)){route.err="Enter your phone number, for example 0612345678.";render();keep(shopN);return}
+ if(pass.length<6){route.err="Use a password of at least 6 characters.";render();keep(shopN,phone);return}
+ if(signup&&pass!==$("aPass2").value){route.err="The two passwords don't match.";render();keep(shopN,phone);return}
+ authBusy=true;const btn=$("authBtn");btn.classList.add("busy");btn.textContent=signup?"Creating your shop…":"Logging in…";
+ const fail=(m,mode)=>{authBusy=false;route.err=m;if(mode)authMode=mode;render();keep(shopN,phone)};
+ try{
+  const r=signup?await authCall("signup",{email:emailOf(phone),password:pass,data:{shop:shopN,phone}})
+                :await authCall("token?grant_type=password",{email:emailOf(phone),password:pass});
+  if(!r.ok){
+   const m=String(r.j.msg||r.j.error_description||r.j.message||"");
+   if(signup&&/registered|exists/i.test(m))return fail("This number already has a shop. Log in instead.","login");
+   if(!signup&&r.status===400)return fail("Wrong phone number or password.");
+   if(r.status===429)return fail("Too many tries. Wait a minute and try again.");
+   return fail("Something went wrong. Try again in a moment.");
+  }
+  if(!r.j.access_token)return fail("Your shop was created but login is blocked. The app owner must turn off email confirmation.");
+  takeSession(r.j);
+  if(signup){S.shops[phone]=newShop();}
+  await cloudLoad(phone);
+  S.user=phone;authBusy=false;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  anim="tab";route={tab:"today"};render();toast(signup?"Your shop is ready":"Welcome back");
+ }catch(e){fail("No internet connection. Check it and try again.")}
+}
+async function refreshCloud(force){if(!CLOUD||!session||!S.user)return;
+ try{await cloudLoad(S.user);
+  const calm=["today","orders","cash","account","detail"].includes(route.tab)||(route.tab==="products"&&!editProd);
+  if(force||calm)render()}
+ catch(e){if(e&&e.code==="auth"){setSync("auth")}}}
+function keep(shopN,phone){if($("aShop"))$("aShop").value=shopN||"";if(phone)$("aPhone").value=phone}
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.closest&&e.target.closest("#authForm")){e.preventDefault();doAuth()}});
 document.addEventListener("click",e=>{
  const el=e.target.closest("button,a");if(!el)return;const d=el.dataset;
+ if(el.id==="authBtn"){doAuth();return}
+ if(el.id==="keySave"){const k=$("aiKey").value.trim();if(!/^sk-ant-/.test(k)){toast("That doesn't look like a Claude API key (it starts with sk-ant-)");return}setKey(k);toast("AI key saved on this phone");render();return}
+ if(el.id==="keyDel"){setKey("");toast("AI key removed");render();return}
  if(el.id==="switchAuth"){authMode=authMode==="login"?"signup":"login";render();return}
  if(el.id==="delAsk"){confirmDelete=true;render();return}
  if(el.id==="delNo"){confirmDelete=false;render();return}
  if(el.id==="delYes"){S.shops[S.user]=newShop();confirmDelete=false;save();toast("Shop data deleted");go({tab:"today"});return}
- if(el.id==="logout"){S.user=null;confirmDelete=false;save();authMode="login";go({tab:"today"});return}
+ if(el.id==="logout"){if(CLOUD){clearTimeout(pushTimer);session=null;saveSession();profile=null;delete S.shops[S.user]}S.user=null;confirmDelete=false;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}authMode="login";go({tab:"today"});return}
+ if(el.id==="refreshPlan"){el.classList.add("busy");el.textContent="Checking…";refreshCloud(true).then(()=>toast(isPro()?"⭐ Pro is active":"Not active yet. It can take up to 24 hours."));return}
  if(d.tab){editProd=null;go({tab:d.tab});return}
  if(d.filterGo){filter=d.filterGo;go({tab:"orders"});return}
  if(d.filter){filter=d.filter;render();return}
@@ -478,7 +743,7 @@ document.addEventListener("click",e=>{
  if(d.advance){const o=SH_().orders.find(x=>x.id==d.advance);o.status=STATUSES[STATUSES.indexOf(o.status)+1];save();toast(LABEL[o.status]);render();return}
  if(d.refuse){const o=SH_().orders.find(x=>x.id==d.refuse);const was=o.status==="shipped";o.status="refused";returnStock(o);save();toast((was?`Refused · ${SHIP} DH shipping lost`:"Cancelled · nothing lost")+` · ${o.qty} back in stock`);render();return}
  if(d.payout){SH_().orders.filter(o=>o.carrier===d.payout&&o.status==="delivered").forEach(o=>o.status="paid");save();toast(`${d.payout} payout recorded`);render();return}
- if(d.stock){const p=prod(d.stock);p.stock=Math.max(0,p.stock+(+d.d));save();render();return}
+ if(d.stock){const p=prod(d.stock);p.stock=Math.max(0,p.stock+(+d.d));save();render();const sb=document.querySelector(`[data-stock="${d.stock}"]`),sp=sb&&sb.parentElement.querySelector("span");if(sp){sp.classList.add("bump");setTimeout(()=>sp.classList.remove("bump"),180)}return}
  if(d.edit){editProd=d.edit;render();return}
  if(el.id==="pCancel"){editProd=null;render();return}
  if(el.id==="pSave"){const name=$("pName").value.trim(),price=+$("pPrice").value,stock=Math.max(0,parseInt($("pStock").value)||0),kw=$("pKw").value.trim();
@@ -490,11 +755,16 @@ document.addEventListener("click",e=>{
  if(el.id==="saveOrder"){const g=id=>$(id).value.trim();
    const p=prod(g("fProduct")),qty=Math.max(1,+g("fQty")||1);
    if(!g("fName")||g("fPhone").replace(/\D/g,"").length<10||!p){toast("Add a name, a 10-digit phone and a product");return}
-   const o={id:SH_().next++,name:g("fName"),phone:g("fPhone").replace(/\D/g,""),city:g("fCity")||"—",address:g("fAddress"),productId:p.id,qty,product:p.name,price:+g("fPrice")||p.price*qty,status:"new",carrier:g("fCarrier"),t:Date.now()};
+   const o={id:SH_().next++,name:g("fName"),phone:g("fPhone").replace(/\D/g,""),city:g("fCity")||"—",address:g("fAddress"),productId:p.id,qty,product:p.name,note:g("fNote"),price:+g("fPrice")||p.price*qty,status:"new",carrier:g("fCarrier"),t:Date.now()};
    if(newSrc!=="other")o.src=newSrc;
    takeStock(o);SH_().orders.push(o);save();
    toast(`Order saved · ${p.name}: ${p.stock} left`);go({tab:"detail",id:o.id});return}
 });
+if(CLOUD){
+ if(S.user&&!session){S.user=null}
+ if(S.user&&session){refreshCloud()}
+ document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.user&&session)refreshCloud()});
+}
 render();
 })();
 </script>
