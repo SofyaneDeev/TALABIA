@@ -17,12 +17,33 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.13'
 
-      - name: Build the APK
-        run: gradle assembleDebug --no-daemon
+      - name: Build the app
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          FILE=$(find . -name settings.gradle -not -path './.git/*' | head -1)
+          if [ -z "$FILE" ]; then echo "Project files are missing. Upload the app folder, build.gradle, settings.gradle and gradle.properties."; exit 1; fi
+          cd "$(dirname "$FILE")"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Signing key found: building the Play Store version."
+            echo "$KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/talabia.jks"
+            export KEYSTORE_FILE="$RUNNER_TEMP/talabia.jks"
+            gradle assembleRelease bundleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/out/Talabia.apk"
+            cp app/build/outputs/bundle/release/app-release.aab "$GITHUB_WORKSPACE/out/Talabia-PlayStore.aab"
+          else
+            echo "No signing key in GitHub secrets: building a test version only."
+            gradle assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/Talabia.apk"
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: Talabia-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: out/
