@@ -2,21 +2,40 @@ plugins {
     id 'com.android.application'
 }
 
+// Version number grows with every GitHub build, as Google Play requires.
+def runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+// Signing key comes from GitHub secrets (never stored in the project).
+def keystoreFile = System.getenv("KEYSTORE_FILE")
+
 android {
     namespace 'ma.talabia.app'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId "ma.talabia.app"
         minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        targetSdk 36
+        versionCode runNumber
+        versionName "1.0.${runNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreFile) {
+                storeFile file(keystoreFile)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
+            if (keystoreFile) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 
