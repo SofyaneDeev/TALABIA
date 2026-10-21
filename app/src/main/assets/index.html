@@ -88,6 +88,9 @@ h2{font-size:16px}
 .btn.link{background:none;color:var(--accent);padding:6px;width:auto}
 .btn.sm{padding:7px 10px;font-size:13px;width:auto}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+.media{display:flex;gap:8px;flex-wrap:wrap}.media .btn{flex:1}
+.mchip{display:flex;align-items:center;gap:10px;background:var(--ai-soft);border:1px solid var(--ai);border-radius:12px;padding:8px 10px;font-size:13px;font-weight:600;color:var(--ink)}
+.mchip img{width:44px;height:44px;object-fit:cover;border-radius:8px}.mchip audio{height:34px;flex:1;min-width:0}.mchip .x{margin-left:auto;background:none;border:0;font-size:18px;color:var(--muted);padding:4px 6px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .row3{display:grid;grid-template-columns:2fr 1fr;gap:8px}
 .field{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -288,7 +291,7 @@ const CONFIG=Object.assign({
  price:"79 DH / month",
  payInfo:"CashPlus to Sofyane El Krid",      // how sellers pay you
  support:"0614840696",      // WhatsApp number for Pro activation
- ai:false,        // set to true once the smart-fill function and ANTHROPIC_API_KEY are set up in Supabase
+ ai:true,         // AI Smart fill through the smart-fill function (Gemini, secret GEMINI_API_KEY in Supabase)
  privacy:"https://sofyanedeev.github.io/TALABIA/privacy.html"
 },window.TALABIA_CONFIG||{});
 const CLOUD=!!(CONFIG.url&&CONFIG.anon)&&!window.claude;   // inside the Claude app the page cannot reach the server, so it stays on-device there
@@ -432,12 +435,12 @@ function ruleParse(txt){
 const AI_MODEL="claude-haiku-5-5";
 let samplePromise=null,aiBlocked=false;
 function getSample(){if(!samplePromise)samplePromise=(window.claude&&window.claude.use)?window.claude.use("sample").catch(()=>null):Promise.resolve(null);return samplePromise}
-function aiPrompt(txt){
+function aiPrompt(txt,kind){
  const catalog=SH_().products.map(p=>({id:p.id,name:p.name,price:p.price,words:p.kw}));
  return `You read a customer's message sent to a small online shop in Morocco and extract the order.
 The message can mix Moroccan Darija (in Latin letters with numbers like 3, 7, 9 — or in Arabic script), French, Arabic and English, with typos and in any order.
 The shop's products (JSON): ${JSON.stringify(catalog)}
-Reply with ONLY one JSON object and nothing else:
+${kind==="image"?"The order is in the attached picture (usually a screenshot of an Instagram or WhatsApp chat). Read only the customer's messages, not the seller's replies.\n":""}Reply with ONLY one JSON object and nothing else:
 {"name": the customer's name (first and family name if given; never a product, city or street) or null,
  "phone": Moroccan number as 10 digits starting with 05, 06 or 07 (convert +212 or 00212 to 0) or null,
  "city": Moroccan city in its usual French spelling (e.g. Casablanca, Fès, Tétouan, Marrakech) or null,
@@ -445,38 +448,77 @@ Reply with ONLY one JSON object and nothing else:
  "productId": the id of the catalog product the customer wants, or null if none matches,
  "productAsked": what the customer asked for in their own words if no catalog product matches, else null,
  "qty": number of items (Darija: wa7d=1, joj/jouj/zouj=2, tlata=3, rb3a=4), default 1,
- "note": short useful details for the seller such as size, color, delivery time or a question the customer asked, else null}
+ "note": short useful details for the seller such as size, color, delivery time or a question the customer asked, else null${kind?`,
+ "heard": the customer's words as you read them, in Latin letters the way Moroccans text (max 400 characters)`:""}}
+Do not invent anything: use null when something is not in the order.${String(txt).trim()?`
 Message:
-"""${String(txt).slice(0,2500)}"""`;
+"""${String(txt).slice(0,2500)}"""`:""}`;
 }
 function cleanAI(r,txt){
  if(!r||typeof r!=="object")return null;
  const out={name:r.name?String(r.name).trim():"",phone:r.phone?normPhone(r.phone):"",city:r.city?String(r.city).trim():"",address:r.address?String(r.address).trim():"",
   productId:r.productId&&prod(String(r.productId))?String(r.productId):"",productAsked:r.productAsked?String(r.productAsked).trim():"",
-  qty:Math.max(1,Math.min(parseInt(r.qty)||1,50)),note:r.note?String(r.note).trim():""};
+  qty:Math.max(1,Math.min(parseInt(r.qty)||1,50)),note:r.note?String(r.note).trim():"",heard:r.heard?String(r.heard).trim().slice(0,600):""};
  if(out.phone&&!/^0[5-7]\d{8}$/.test(out.phone))out.phone="";
  const rb=ruleParse(txt);for(const k of ["name","phone","city","address","productId"])if(!out[k])out[k]=rb[k];
  return out;
 }
+/* ---------- photo / voice note for Smart fill ---------- */
+let newMedia=null; // {kind:"image"|"audio",mime,name,size,data(base64),url,blob}
+const AUDIO_OK=/^(audio\/(ogg|opus|mpeg|mp3|wav|x-wav|aac|mp4|x-m4a|m4a|flac|webm)|application\/ogg)/i;
+function mediaChip(){if(!newMedia)return"";const kb=Math.max(1,Math.round(newMedia.size/1024));
+ return `<div class="mchip">${newMedia.kind==="image"?`<img src="${newMedia.url}" alt="">`:`<audio controls src="${newMedia.url}"></audio>`}<span>${newMedia.kind==="image"?"Screenshot":"Voice note"} · ${kb>999?(kb/1024).toFixed(1)+" MB":kb+" KB"}</span><button type="button" class="x" id="mediaX" aria-label="Remove">✕</button></div>`}
+function showMedia(){const c=$("mediaChip");if(c)c.innerHTML=mediaChip()}
+function clearMedia(){if(newMedia&&newMedia.url)try{URL.revokeObjectURL(newMedia.url)}catch(e){}newMedia=null;showMedia()}
+const b64=buf=>{let s="",a=new Uint8Array(buf);for(let i=0;i<a.length;i+=32768)s+=String.fromCharCode.apply(null,a.subarray(i,i+32768));return btoa(s)};
+function shrinkImage(file){return new Promise(res=>{const img=new Image(),u=URL.createObjectURL(file);
+ img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>res(b||file),"image/jpeg",.85)};
+ img.onerror=()=>{URL.revokeObjectURL(u);res(file)};img.src=u})}
+async function takeMedia(file){
+ if(!file)return;const type=(file.type||"").toLowerCase(),name=file.name||"";
+ const isImg=type.startsWith("image/"),isAud=AUDIO_OK.test(type)||/\.(opus|ogg|m4a|mp3|aac|wav)$/i.test(name);
+ if(!isImg&&!isAud){toast("Choose a picture or a voice note");return}
+ let blob=file;if(isImg)blob=await shrinkImage(file);
+ if(blob.size>10*1024*1024){toast("This file is too big (10 MB max)");return}
+ let mime=isImg?(blob.type||"image/jpeg"):(type||(/\.m4a$/i.test(name)?"audio/mp4":/\.mp3$/i.test(name)?"audio/mpeg":"audio/ogg"));
+ const data=b64(await blob.arrayBuffer());
+ clearMedia();newMedia={kind:isImg?"image":"audio",mime,name,size:blob.size,data,url:URL.createObjectURL(blob),blob};showMedia();
+ const n=$("fillNote");if(n)n.innerHTML="";
+}
+/* The Android app passes things shared from WhatsApp/Instagram (Share → Talabia) */
+window.talabiaShared=function(x){
+ if(!S.user||!x)return;
+ const go2=()=>{if(route.tab!=="add")go({tab:"add"});return !!$("fill")};
+ if(!go2()){toast("Add a product first");return}
+ if(x.text){$("paste").value=x.text}
+ if(x.data&&x.mime){const bin=atob(x.data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  const f=new File([u],x.name||"shared",{type:x.mime});takeMedia(f).then(()=>{if(newMedia)runFill()});return}
+ if(x.text)runFill();
+};
 function parseJSON(text){try{return JSON.parse(text)}catch(e){}const m=String(text).match(/\{[\s\S]*\}/);if(m){try{return JSON.parse(m[0])}catch(e){}}return null}
-async function smartParse(txt){
+async function smartParse(txt,media){
+ const basic=()=>media&&!txt.trim()?{name:"",phone:"",city:"",address:"",productId:"",productAsked:"",qty:1,note:""}:ruleParse(txt);
  // 0) Talabia server (online mode)
  if(CLOUD&&session&&CONFIG.ai){
   try{const t=await token();if(!t)throw 0;
    const catalog=SH_().products.map(p=>({id:p.id,name:p.name,price:p.price,words:p.kw}));
-   const r=await fetch(CONFIG.url+"/functions/v1/smart-fill",{method:"POST",headers:{apikey:CONFIG.anon,Authorization:"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({message:txt,catalog})});
+   const r=await fetch(CONFIG.url+"/functions/v1/smart-fill",{method:"POST",headers:{apikey:CONFIG.anon,Authorization:"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({message:txt,catalog,media:media?{mime:media.mime,data:media.data}:undefined})});
    const j=await r.json().catch(()=>({}));
    if(r.ok){if(profile){profile.ai_month=new Date().toISOString().slice(0,7);profile.ai_used=j.used||profile.ai_used}
     const d=cleanAI(j.result,txt);if(d)return{data:d,by:"ai",left:j.limit?Math.max(0,j.limit-j.used):null}}
-   if(r.status===402)return{data:ruleParse(txt),by:"rules",why:`You used your ${j.limit||20} free AI reads this month. Go Pro in My account for unlimited AI.`};
-   return{data:ruleParse(txt),by:"rules",why:"AI is not available right now, used the basic reader."};
-  }catch(e){return{data:ruleParse(txt),by:"rules",why:"No internet, used the basic reader."}}
+   if(r.status===402)return{data:basic(),by:"rules",why:`You used your ${j.limit||20} free AI reads this month. Go Pro in My account for unlimited AI.`};
+   if(media&&(j.error==="media_type"||j.error==="media_too_big"))return{data:basic(),by:"rules",why:j.error==="media_type"?"This kind of file can't be read. Use a picture or a WhatsApp voice note.":"This file is too big (10 MB max)."};
+   return{data:basic(),by:"rules",why:"AI is not available right now"+(media?". Type the order by hand or try again.":", used the basic reader.")};
+  }catch(e){return{data:basic(),by:"rules",why:"No internet"+(media?". Try again when you're online.":", used the basic reader.")}}
  }
  // 1) Claude app
+ if(media&&media.kind==="audio")return{data:basic(),by:"rules",why:"Voice notes are read in the installed app (online). Here you can try a screenshot or pasted text."};
  if(!aiBlocked){const sample=await getSample();
-  if(sample){try{const r=await sample.json(aiPrompt(txt),{modelTier:"quick"});const d=cleanAI(r,txt);if(d)return{data:d,by:"ai"}}
+  if(sample){try{const r=await sample.json(aiPrompt(txt,media?"image":""),media?{modelTier:"quick",images:[media.blob]}:{modelTier:"quick"});const d=cleanAI(r,txt);if(d)return{data:d,by:"ai"}}
    catch(e){if(e&&["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e.code))aiBlocked=true}}}
  // 2) Claude API key saved on this phone
+ if(media)return{data:basic(),by:"rules",why:"Reading screenshots needs AI. Connect your account to the internet and try again."};
  const key=getKey();
  if(key){try{
   const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
@@ -614,9 +656,12 @@ function vAdd(){
   <div class="field"><span class="label">Where did the order come from?</span><div class="chips" id="srcPick">${[["ig","Instagram"],["wa","WhatsApp"],["other","Other"]].map(([k,l])=>`<button type="button" class="chip" data-src="${k}" aria-pressed="${newSrc===k}">${l}</button>`).join("")}</div></div>
   <div class="field"><label class="label" for="paste">Customer's message</label>
    <textarea id="paste" placeholder="Paste a DM: Salam bghit joj argan serum, ana Houda, Tetouan hay Lmandri n°7, 0661234567"></textarea></div>
+  <div class="media"><button type="button" class="btn ghost sm" id="addPhoto">📷 Screenshot</button><button type="button" class="btn ghost sm" id="addVoice">🎤 Voice note</button></div>
+  <input type="file" id="mediaIn" hidden>
+  <div id="mediaChip">${mediaChip()}</div>
   <button type="button" class="btn ai" id="fill">✨ Smart fill</button>
   <div id="fillNote"></div>
-  <p class="hint" style="margin:0">In Instagram or WhatsApp, long-press the customer's message, tap Copy, then paste it here.</p>
+  <p class="hint" style="margin:0">Paste the customer's message, or add a screenshot of the chat or their voice note.${window.TalabiaAndroid?" Faster: in WhatsApp, long-press the voice note or picture → Share → Talabia.":""}</p>
  </div>
  <div class="row2"><div class="field"><label class="label" for="fName">Customer name</label><input id="fName" autocomplete="off"></div>
  <div class="field"><label class="label" for="fPhone">Phone</label><input id="fPhone" inputmode="tel" placeholder="06…"></div></div>
@@ -912,15 +957,16 @@ function dupCheck(){const p=normPhone($("fPhone").value);const n=SH_().orders.fi
  $("dupWarn").innerHTML=n?`<div class="warnbox">⚠ This number refused ${n} order${n>1?"s":""} before.</div>`:""}
 let filling=false;
 async function runFill(){
- const txt=$("paste").value.trim();
- if(!txt){toast("Paste the customer's message first");return}
+ const txt=$("paste").value.trim(),media=newMedia;
+ if(!txt&&!media){toast("Paste the customer's message, or add a screenshot or voice note");return}
  if(filling)return;filling=true;
- const btn=$("fill");btn.disabled=true;btn.classList.add("thinking");btn.textContent="✨ AI is reading the message…";
+ const btn=$("fill");btn.disabled=true;btn.classList.add("thinking");btn.textContent=media?(media.kind==="audio"?"✨ AI is listening…":"✨ AI is reading the picture…"):"✨ AI is reading the message…";
  $("fillNote").innerHTML="";
- let res;try{res=await smartParse(txt)}catch(e){res={data:ruleParse(txt),by:"rules"}}
+ let res;try{res=await smartParse(txt,media)}catch(e){res={data:ruleParse(txt),by:"rules"}}
  filling=false;
  if(route.tab!=="add"||!$("fill"))return;
  btn.disabled=false;btn.classList.remove("thinking");btn.textContent="✨ Smart fill";
+ if(media&&!txt&&res.by!=="ai"){$("fillNote").innerHTML=`<div class="aibox">${esc(res.why||"Couldn't read it. Try again.")}</div>`;return}
  const data=res.data;
  ["fName","fPhone","fCity","fAddress","fProduct","fQty","fPrice","fNote"].forEach(id=>$(id).classList.remove("auto"));
  let n=0;const set=(id,v)=>{if(v!==""&&v!=null){$(id).value=v;$(id).style.animationDelay=(n++*90)+"ms";$(id).classList.add("auto")}};
@@ -928,6 +974,7 @@ async function runFill(){
  if(data.productId){$("fProduct").value=data.productId;$("fProduct").classList.add("auto")}
  set("fQty",data.qty);priceTouched=false;recalc();if(data.productId)$("fPrice").classList.add("auto");
  set("fNote",data.note||"");
+ if(data.heard&&!$("paste").value.trim())$("paste").value=data.heard;
  dupCheck();
  const missing=[["name","name"],["phone","phone"],["city","city"],["address","address"],["productId","product"]].filter(([k])=>!data[k]).map(([,l])=>l);
  const who=res.by==="ai"?"✨ Read by AI":"Read by the basic reader";
@@ -998,6 +1045,7 @@ function keep(shopN,phone){if($("aShop"))$("aShop").value=shopN||"";if(phone)$("
 function keepForm(fn){document.body.classList.add("noanim");setTimeout(()=>document.body.classList.remove("noanim"),50);const v={};["aShop","aPhone","aPass","aPass2"].forEach(id=>{if($(id))v[id]=$(id).value});fn();Object.keys(v).forEach(id=>{if($(id))$(id).value=v[id]})}
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.closest&&e.target.closest("#authForm")&&e.target.id!=="aOtherCarrier"){e.preventDefault();doAuth()}
  if(e.key==="Enter"&&e.target.id==="aOtherCarrier"){e.preventDefault();const b=$("addOtherCarrier");if(b)b.click()}});
+document.addEventListener("change",e=>{if(e.target.id==="mediaIn"&&e.target.files&&e.target.files[0])takeMedia(e.target.files[0])});
 document.addEventListener("input",e=>{if(e.target.id==="custSearch"){custQ=e.target.value;const l=$("custList");if(l)l.innerHTML=custRows()}});
 document.addEventListener("change",e=>{const t=e.target;
  if(t.dataset&&t.dataset.fee!=null){const v=Math.max(0,Math.round(+String(t.value).replace(",",".")||0));const c=carriers()[+t.dataset.fee];if(c){c.fee=v;t.value=v;touchMeta();save();toast(c.name+": "+v+" DH per delivery")}}
@@ -1066,13 +1114,15 @@ document.addEventListener("click",e=>{
    editProd=null;save();toast("Product saved");render();return}
  if(el.id==="pDelete"){SH_().del=SH_().del||{};SH_().del[d.id]=Date.now();SH_().products=SH_().products.filter(p=>p.id!==d.id);editProd=null;save();toast("Product deleted");render();return}
  if(el.id==="fill"){runFill();return}
+ if(el.id==="addPhoto"||el.id==="addVoice"){const f=$("mediaIn");f.value="";f.accept=el.id==="addPhoto"?"image/*":window.TalabiaAndroid?"audio/*":"audio/*,.opus,.ogg,.m4a,.mp3";f.click();return}
+ if(el.id==="mediaX"){clearMedia();return}
  if(el.id==="saveOrder"){const g=id=>$(id).value.trim();
    const p=prod(g("fProduct")),qty=Math.max(1,+g("fQty")||1);
    if(!g("fName")||g("fPhone").replace(/\D/g,"").length<10||!p){toast("Add a name, a 10-digit phone and a product");return}
    if(!proActive()&&ordersThisMonth()>=FREE_ORDERS){go({tab:"add"});return}
    const o={id:Date.now(),no:SH_().next++,u:Date.now(),name:g("fName"),phone:g("fPhone").replace(/\D/g,""),city:g("fCity")||"—",address:g("fAddress"),productId:p.id,qty,product:p.name,note:g("fNote"),price:+g("fPrice")||p.price*qty,ship:feeOf(g("fCarrier")),status:"new",carrier:g("fCarrier"),t:Date.now()};
    if(newSrc!=="other")o.src=newSrc;
-   SH_().orders.push(o);takeStock(o);save();
+   SH_().orders.push(o);takeStock(o);save();clearMedia();
    toast(`Order saved · ${p.name}: ${p.stock} left`);go({tab:"detail",id:o.id});return}
 });
 /* Android back button: go back inside the app; return false to leave the app */

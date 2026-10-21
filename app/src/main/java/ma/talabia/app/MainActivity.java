@@ -15,12 +15,24 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Parcelable;
+import android.util.Base64;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.LinearLayout;
+import android.widget.Toast;
+
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 
 /** Talabia: shows the app (assets/index.html) full screen. */
 public class MainActivity extends Activity {
@@ -29,6 +41,11 @@ public class MainActivity extends Activity {
     private WebView web;
     private View topBar, bottomBar;
     private Object backCallback; // OnBackInvokedCallback on Android 13+
+    private static final int PICK_FILE = 1001;
+    private static final int MAX_SHARE_BYTES = 10 * 1024 * 1024;
+    private ValueCallback<Uri[]> fileCallback;  // waiting for the photo / voice note picker
+    private boolean pageReady = false;
+    private String pendingShare;                // something shared to Talabia before the page was ready
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,11 +104,37 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return openOutside(Uri.parse(url));
             }
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                pageReady = true;
+                if (pendingShare != null) {
+                    final String js = pendingShare;
+                    pendingShare = null;
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> deliverShare(js), 900);
+                }
+            }
+        });
+
+        // Lets the page open the phone's picker for a screenshot or a voice note.
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (fileCallback != null) fileCallback.onReceiveValue(null);
+                fileCallback = callback;
+                try {
+                    startActivityForResult(params.createIntent(), PICK_FILE);
+                } catch (ActivityNotFoundException e) {
+                    fileCallback = null;
+                    return false;
+                }
+                return true;
+            }
         });
 
         setContentView(root);
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl("file:///android_asset/index.html");
+        if (savedInstanceState == null) handleShare(getIntent());
 
         // Back button / back gesture: go back inside the app first.
         if (Build.VERSION.SDK_INT >= 33) {
@@ -100,6 +143,83 @@ public class MainActivity extends Activity {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                     android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, cb);
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleShare(intent);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_FILE && fileCallback != null) {
+            fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
+            fileCallback = null;
+        }
+    }
+
+    /** "Share → Talabia" from WhatsApp or Instagram: a message, a screenshot or a voice note. */
+    private void handleShare(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return;
+        final String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+        final Uri uri = sharedUri(intent);
+        final String type = intent.getType();
+        intent.setAction(Intent.ACTION_MAIN); // handle it only once
+        new Thread(() -> {
+            try {
+                JSONObject o = new JSONObject();
+                if (text != null) o.put("text", text);
+                if (uri != null) {
+                    String mime = getContentResolver().getType(uri);
+                    if (mime == null) mime = type;
+                    byte[] bytes = readAll(uri);
+                    if (bytes == null) {
+                        runOnUiThread(() -> Toast.makeText(this, "This file is too big for Talabia (10 MB max)", Toast.LENGTH_LONG).show());
+                        return;
+                    }
+                    o.put("mime", mime == null ? "application/octet-stream" : mime);
+                    o.put("name", uri.getLastPathSegment());
+                    o.put("data", Base64.encodeToString(bytes, Base64.NO_WRAP));
+                }
+                final String js = o.toString();
+                runOnUiThread(() -> {
+                    if (pageReady) deliverShare(js);
+                    else pendingShare = js;
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, "Talabia couldn't open what you shared", Toast.LENGTH_LONG).show());
+            }
+        }).start();
+    }
+
+    @SuppressWarnings("deprecation")
+    private static Uri sharedUri(Intent intent) {
+        Parcelable p = Build.VERSION.SDK_INT >= 33
+                ? intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri.class)
+                : intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        return p instanceof Uri ? (Uri) p : null;
+    }
+
+    private byte[] readAll(Uri uri) throws Exception {
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) return new byte[0];
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[65536];
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                out.write(buf, 0, n);
+                if (out.size() > MAX_SHARE_BYTES) return null;
+            }
+            return out.toByteArray();
+        }
+    }
+
+    private void deliverShare(String json) {
+        web.evaluateJavascript("window.talabiaShared && window.talabiaShared(" + json + ")", null);
     }
 
     private static void setHeight(View v, int h) {
