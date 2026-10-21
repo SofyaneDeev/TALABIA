@@ -68,7 +68,7 @@ async function askGemini(prompt: string, media: { mime: string; data: string } |
     last = r.status;
     // Model missing, busy or out of free quota: try the next one
     if ([404, 429, 503].includes(r.status) || (r.status === 400 && model !== MODELS[MODELS.length - 1])) continue;
-    if (!r.ok) return { error: "ai_failed", status: r.status };
+    if (!r.ok) { console.error("Gemini error", model, r.status, (await r.text()).slice(0, 300)); return { error: "ai_failed", status: r.status }; }
     const out = await r.json();
     const text = (out.candidates?.[0]?.content?.parts || [])
       .filter((p: { thought?: boolean }) => !p.thought)
@@ -78,16 +78,28 @@ async function askGemini(prompt: string, media: { mime: string; data: string } |
   return { error: "ai_failed", status: last };
 }
 
+// The server's secret key: older projects have SUPABASE_SERVICE_ROLE_KEY, newer ones SUPABASE_SECRET_KEYS.
+function serverKey(): string {
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacy) return legacy;
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
+    const first = keys.default || Object.values(keys)[0];
+    if (typeof first === "string" && first) return first;
+  } catch { /* ignore */ }
+  return Deno.env.get("SUPABASE_SECRET_KEY") || "";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return reply({ error: "method" }, 405);
   try {
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, serverKey());
 
     // Who is asking?
     const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     const { data: { user }, error } = await admin.auth.getUser(token);
-    if (error || !user) return reply({ error: "not_signed_in" }, 401);
+    if (error || !user) { console.error("smart-fill sign-in check failed:", error?.message); return reply({ error: "not_signed_in" }, 401); }
 
     // Plan and monthly AI allowance
     const { data: p } = await admin.from("profiles").select("*").eq("id", user.id).single();
@@ -121,7 +133,8 @@ Deno.serve(async (req) => {
     // Count this read
     await admin.from("profiles").update({ ai_month: month, ai_used: used + 1 }).eq("id", user.id);
     return reply({ result, pro, used: used + 1, limit: pro ? null : FREE_AI_PER_MONTH });
-  } catch (_e) {
+  } catch (e) {
+    console.error("smart-fill failed:", e);
     return reply({ error: "server_error" }, 500);
   }
 });
