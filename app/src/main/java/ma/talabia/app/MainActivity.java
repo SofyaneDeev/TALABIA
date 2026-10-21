@@ -50,6 +50,81 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // If the app crashed last time, keep the error so it can be shown and sent to us.
+        final android.content.SharedPreferences prefs = getSharedPreferences("talabia-crash", MODE_PRIVATE);
+        final String lastCrash = prefs.getString("trace", null);
+        if (lastCrash != null) prefs.edit().remove("trace").commit();
+        final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            try { prefs.edit().putString("trace", describe(error)).commit(); } catch (Throwable ignored) { }
+            if (previous != null) previous.uncaughtException(thread, error);
+        });
+        try {
+            setUpApp(savedInstanceState);
+        } catch (Throwable error) {
+            showProblem(error); // e.g. "Android System WebView" missing or out of date
+            return;
+        }
+        if (lastCrash != null) showLastCrash(lastCrash);
+    }
+
+    private static String describe(Throwable error) {
+        java.io.StringWriter w = new java.io.StringWriter();
+        error.printStackTrace(new java.io.PrintWriter(w));
+        return "Android " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + "), " + Build.MANUFACTURER + " " + Build.MODEL + "\n" + w;
+    }
+
+    private void copyText(String text) {
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Talabia error", text));
+        Toast.makeText(this, "Erreur copiée", Toast.LENGTH_SHORT).show();
+    }
+
+    /** Shown instead of closing when the app can't start (most often: Android System WebView missing or old). */
+    private void showProblem(Throwable error) {
+        final String details = describe(error);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (24 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad * 2, pad, pad);
+        box.setBackgroundColor(Color.WHITE);
+        android.widget.TextView title = new android.widget.TextView(this);
+        title.setText("Talabia ne peut pas démarrer sur ce téléphone");
+        title.setTextSize(22);
+        title.setTextColor(GREEN);
+        android.widget.TextView text = new android.widget.TextView(this);
+        text.setText("Mettez à jour « Android System WebView » et « Google Chrome » depuis le Play Store, puis rouvrez Talabia.\n\nSi le problème continue, copiez l'erreur et envoyez-la au support Talabia.");
+        text.setTextSize(16);
+        text.setTextColor(Color.DKGRAY);
+        text.setPadding(0, pad / 2, 0, pad);
+        android.widget.Button update = new android.widget.Button(this);
+        update.setText("Mettre à jour Android System WebView");
+        update.setOnClickListener(v -> {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.webview"))); }
+            catch (Throwable e) { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.webview"))); }
+        });
+        android.widget.Button copy = new android.widget.Button(this);
+        copy.setText("Copier l'erreur");
+        copy.setOnClickListener(v -> copyText(details));
+        box.addView(title);
+        box.addView(text);
+        box.addView(update);
+        box.addView(copy);
+        setContentView(box);
+    }
+
+    private void showLastCrash(final String trace) {
+        try {
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Talabia s'est fermée la dernière fois")
+                    .setMessage("Envoyez cette erreur au support Talabia pour qu'on la corrige :\n\n" + (trace.length() > 1500 ? trace.substring(0, 1500) + "…" : trace))
+                    .setPositiveButton("Copier l'erreur", (d, w) -> copyText(trace))
+                    .setNegativeButton("OK", null)
+                    .show();
+        } catch (Throwable ignored) { }
+    }
+
+    private void setUpApp(Bundle savedInstanceState) {
         Window window = getWindow();
 
         // Layout: green strip under the status bar, the app, white strip above the navigation bar.
@@ -219,6 +294,7 @@ public class MainActivity extends Activity {
     }
 
     private void deliverShare(String json) {
+        if (web == null) return;
         web.evaluateJavascript("window.talabiaShared && window.talabiaShared(" + json + ")", null);
     }
 
@@ -228,6 +304,7 @@ public class MainActivity extends Activity {
     }
 
     private void handleBack() {
+        if (web == null) { finish(); return; }
         web.evaluateJavascript("(window.talabiaBack && window.talabiaBack()) ? 'yes' : 'no'", value -> {
             if (value != null && value.contains("yes")) return;
             if (web.canGoBack()) web.goBack();
@@ -253,7 +330,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
-        web.saveState(out);
+        if (web != null) web.saveState(out);
     }
 
     @Override
