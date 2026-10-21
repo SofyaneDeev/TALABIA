@@ -269,6 +269,20 @@ public class MainActivity extends Activity {
         private final Context ctx;
         Bridge(Context c) { ctx = c; }
 
+        /** Which store installed the app ("com.android.vending" = Google Play), or "" when installed by hand. */
+        @JavascriptInterface
+        public String installer() {
+            try {
+                String pkg = ctx.getPackageName();
+                String who;
+                if (Build.VERSION.SDK_INT >= 30) who = ctx.getPackageManager().getInstallSourceInfo(pkg).getInstallingPackageName();
+                else who = ctx.getPackageManager().getInstallerPackageName(pkg);
+                return who == null ? "" : who;
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
         @JavascriptInterface
         public void copy(String text) {
             ClipboardManager cm = (ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);

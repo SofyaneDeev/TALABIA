@@ -5,8 +5,10 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const FREE_AI_PER_MONTH = 20;
-const MODELS = [Deno.env.get("GEMINI_MODEL"), "gemini-flash-latest", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
-  .filter((m): m is string => !!m);
+// Fastest first: Flash-Lite reads text, pictures and voice notes with very little "thinking".
+const MODELS = [Deno.env.get("GEMINI_MODEL"), "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-flash-latest"]
+  .filter((m, i, a): m is string => !!m && a.indexOf(m) === i);
+const MODEL_TIMEOUT_MS = 20000; // give up on a model after 20 s and try the next one
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024; // 10 MB
 const MEDIA_TYPES: Record<string, string> = {
   "image/jpeg": "image/jpeg", "image/png": "image/png", "image/webp": "image/webp",
@@ -56,24 +58,39 @@ async function askGemini(prompt: string, media: { mime: string; data: string } |
   const parts: unknown[] = [{ text: prompt }];
   if (media) parts.push({ inline_data: { mime_type: media.mime, data: media.data } });
   let last = 0;
+  const started = Date.now();
   for (const model of MODELS) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "x-goog-api-key": key, "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: "application/json" },
-      }),
-    });
-    last = r.status;
-    // Model missing, busy or out of free quota: try the next one
-    if ([404, 429, 503].includes(r.status) || (r.status === 400 && model !== MODELS[MODELS.length - 1])) continue;
-    if (!r.ok) { console.error("Gemini error", model, r.status, (await r.text()).slice(0, 300)); return { error: "ai_failed", status: r.status }; }
-    const out = await r.json();
-    const text = (out.candidates?.[0]?.content?.parts || [])
-      .filter((p: { thought?: boolean }) => !p.thought)
-      .map((p: { text?: string }) => p.text || "").join("");
-    return { text };
+    if (Date.now() - started > 40000 - MODEL_TIMEOUT_MS) { console.log("smart-fill: out of time, giving up"); break; }
+    // First ask for minimal "thinking" (much faster); if this model doesn't accept that option, ask again without it.
+    for (const minimal of [true, false]) {
+      const generationConfig: Record<string, unknown> = { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: "application/json" };
+      if (minimal) generationConfig.thinkingConfig = { thinkingLevel: model.includes("lite") ? "minimal" : "low" };
+      const t0 = Date.now();
+      let r: Response;
+      try {
+        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: { "x-goog-api-key": key, "content-type": "application/json" },
+          body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig }),
+          signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
+        });
+      } catch (_e) {
+        console.log(`smart-fill: ${model} timed out after ${Date.now() - t0} ms`);
+        last = 504;
+        break; // too slow: next model
+      }
+      last = r.status;
+      console.log(`smart-fill: ${model}${minimal ? " (minimal thinking)" : ""} -> ${r.status} in ${Date.now() - t0} ms`);
+      if (r.status === 400 && minimal) { await r.text(); continue; } // option not supported: retry without it
+      if ([400, 404, 429, 500, 503].includes(r.status)) { await r.text(); break; } // missing, busy or out of free quota: next model
+      if (!r.ok) { console.error("Gemini error", model, r.status, (await r.text()).slice(0, 300)); return { error: "ai_failed", status: r.status }; }
+      const out = await r.json();
+      const text = (out.candidates?.[0]?.content?.parts || [])
+        .filter((p: { thought?: boolean }) => !p.thought)
+        .map((p: { text?: string }) => p.text || "").join("");
+      console.log(`smart-fill: answered by ${model}, total ${Date.now() - started} ms`);
+      return { text };
+    }
   }
   return { error: "ai_failed", status: last };
 }
