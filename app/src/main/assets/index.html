@@ -343,6 +343,12 @@ body.gate{background:#f6f5eb}body.gate::before{background:#f6f5eb}
 .login.gate::after{z-index:0}
 .login.gate .logo{color:var(--accent)}
 .login.gate h1{font-size:28px}
+
+.introin{justify-content:flex-start;align-items:stretch}
+.introin .glogo{align-self:center}
+.intro.zl{position:fixed}
+.intromid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px}
+.introfoot{display:flex;flex-direction:column;gap:10px;padding-top:10px}
 </style>
 </head>
 <body>
@@ -702,7 +708,7 @@ const FLAG={
  fr:'<svg viewBox="0 0 38 26"><rect width="13" height="26" fill="#0055a4"/><rect x="13" width="12" height="26" fill="#fff"/><rect x="25" width="13" height="26" fill="#ef4135"/></svg>',
  en:'<svg viewBox="0 0 38 26"><rect width="38" height="26" fill="#012169"/><path d="M0 0L38 26M38 0L0 26" stroke="#fff" stroke-width="5"/><path d="M0 0L38 26M38 0L0 26" stroke="#c8102e" stroke-width="2"/><path d="M19 0v26M0 13h38" stroke="#fff" stroke-width="8"/><path d="M19 0v26M0 13h38" stroke="#c8102e" stroke-width="4.5"/></svg>'};
 function langChosen(){try{return !!localStorage.getItem("talabia-lang")}catch(e){return true}}
-function vLang(){const L=[["ar","العربية","الدارجة والعربية"],["fr","Français","Pour les vendeurs francophones"],["en","English",""]];
+function vLang(){const L=[["ar","العربية",""],["fr","Français",""],["en","English",""]];
  return `<div class="gate zl langscreen wrap" data-notr><div class="glogo">Talabia<i>.</i></div><div class="gtag">أهلاً وسهلاً</div>
   <img class="mascot" src="${IMG.m}" alt="" width="372" height="225">
   <h1>اختر لغتك المفضلة<span>Choisissez votre langue · Choose your language</span></h1>
@@ -782,11 +788,11 @@ function vIntro(){const pre=!S.user,idx=pre?preIdx:introIdx,s=INTRO[idx],last=id
  return `<div class="intro gate zl" role="dialog" aria-modal="true" aria-label="Quick tour"><div class="introin">
   <button type="button" class="btn link skip" data-intro="skip">Skip</button>
   <div class="glogo">Talabia<i>.</i></div>
-  <h1>${s.t}</h1><p class="sub">${s.b}</p>
+  <div class="intromid"><h1>${s.t}</h1><p class="sub">${s.b}</p>
   <img class="iimg" src="${IMG[s.img]}" alt="">
   <div class="bens">${s.f.map(([k,x])=>`<div>${IC[k]}<span>${x}</span></div>`).join("")}</div>
-  <div class="dots">${INTRO.map((_,i)=>`<i class="${i===idx?"on":""}"></i>`).join("")}</div>
-  ${last?`<button type="button" class="btn gbtn" data-intro="done">Let's start</button>${pre?"":`<button type="button" class="btn ghost" data-intro="demo">Show me with an example</button>`}`:`<button type="button" class="btn gbtn" data-intro="next">Next</button>`}
+  <div class="dots">${INTRO.map((_,i)=>`<i class="${i===idx?"on":""}"></i>`).join("")}</div></div>
+  <div class="introfoot">${last?`<button type="button" class="btn gbtn" data-intro="done">Let's start</button>${pre?"":`<button type="button" class="btn ghost" data-intro="demo">Show me with an example</button>`}`:`<button type="button" class="btn gbtn" data-intro="next">Next</button>`}</div>
  </div></div>`}
 
 let qLang=(()=>{try{return localStorage.getItem("talabia-qlang")==="fr"?"fr":"dj"}catch(e){return"dj"}})();
