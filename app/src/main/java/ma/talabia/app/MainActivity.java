@@ -93,7 +93,10 @@ public class MainActivity extends Activity {
         title.setTextSize(22);
         title.setTextColor(GREEN);
         android.widget.TextView text = new android.widget.TextView(this);
-        text.setText("Mettez à jour « Android System WebView » et « Google Chrome » depuis le Play Store, puis rouvrez Talabia.\n\nSi le problème continue, copiez l'erreur et envoyez-la au support Talabia.");
+        text.setText("1. Ouvrez le Play Store\n2. Cherchez « Android System WebView »\n3. Appuyez sur « Mettre à jour » (faites la même chose pour « Google Chrome »)\n4. Rouvrez Talabia\n\n"
+                + "١. افتح متجر Play\n٢. ابحث عن « Android System WebView »\n٣. اضغط « تحديث » (وكذلك « Google Chrome »)\n٤. أعد فتح طلبية\n\n"
+                + "Ça ne marche toujours pas ? Ouvrez la version web dans Chrome puis « Ajouter à l'écran d'accueil ». / "
+                + "إذا لم يعمل، افتح النسخة على الويب في Chrome ثم « إضافة إلى الشاشة الرئيسية ».");
         text.setTextSize(16);
         text.setTextColor(Color.DKGRAY);
         text.setPadding(0, pad / 2, 0, pad);
@@ -103,14 +106,23 @@ public class MainActivity extends Activity {
             try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.webview"))); }
             catch (Throwable e) { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.webview"))); }
         });
+        android.widget.Button web = new android.widget.Button(this);
+        web.setText("Ouvrir la version web (Chrome)");
+        web.setOnClickListener(v -> {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://sofyanedeev.github.io/TALABIA/app/"))); } catch (Throwable ignored) { }
+        });
         android.widget.Button copy = new android.widget.Button(this);
         copy.setText("Copier l'erreur");
         copy.setOnClickListener(v -> copyText(details));
         box.addView(title);
         box.addView(text);
         box.addView(update);
+        box.addView(web);
         box.addView(copy);
-        setContentView(box);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setBackgroundColor(Color.WHITE);
+        scroll.addView(box);
+        setContentView(scroll);
     }
 
     private void showLastCrash(final String trace) {

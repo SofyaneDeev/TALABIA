@@ -268,6 +268,7 @@ body.ar{--display:"Cairo",ui-sans-serif,system-ui,sans-serif;--body:"Cairo",ui-s
 .mtop{display:flex;justify-content:space-between;gap:10px;font-size:13px;opacity:.9;font-weight:600}
 .mbig{direction:ltr;text-align:start;font-family:var(--display);font-weight:700;font-size:42px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:2px}
 .mrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px}
+.trend{background:rgba(127,127,127,.18)}
 .trend{border-radius:999px;padding:2px 9px;font-weight:700;font-size:12.5px;background:color-mix(in srgb,currentColor 18%,transparent)}
 .week{display:flex;align-items:flex-end;gap:6px;height:44px;margin-top:12px}
 .week i{flex:1;background:currentColor;opacity:.3;border-radius:5px 5px 2px 2px}
@@ -363,6 +364,19 @@ body.gate{background:#f6f5eb}body.gate::before{background:#f6f5eb}
 
 .codebox{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;background:var(--accent-soft);border-radius:12px;padding:10px 12px}
 .codebox b{font-family:var(--display);font-size:24px;letter-spacing:.06em;color:var(--accent)}
+@supports not (padding-inline-start:1px){
+body::before{top:0;left:0;right:0}
+.hero::before,.login::before,.intro{top:0;right:0;bottom:0;left:0}
+header{padding-top:12px;padding-bottom:12px}main{padding-top:16px;padding-bottom:96px}
+.order{border-left:5px solid var(--edge,var(--line))}
+[dir=rtl] .order{border-left:0;border-right:5px solid var(--edge,var(--line))}
+.dot{margin-right:6px}[dir=rtl] .dot{margin-right:0;margin-left:6px}
+.introin .skip{right:12px}[dir=rtl] .introin .skip{right:auto;left:12px}
+.langbtn::after{margin-left:auto}[dir=rtl] .langbtn::after{margin-left:0;margin-right:auto}
+.bens>div+div{border-left:1px solid var(--line)}[dir=rtl] .bens>div+div{border-left:0;border-right:1px solid var(--line)}
+.inp>svg{left:13px}[dir=rtl] .inp>svg{left:auto;right:13px}
+.inp input{padding-left:44px}[dir=rtl] .inp input{padding-left:12px;padding-right:44px}
+}
 </style>
 </head>
 <body>
@@ -501,7 +515,7 @@ const touch=x=>{if(x)x.u=Date.now();return x};
 const touchMeta=()=>{SH_().metaU=Date.now()};
 function isPro(){if(!profile||profile.plan!=="pro")return false;return !profile.pro_until||profile.pro_until>=new Date().toISOString().slice(0,10)}
 function aiUsed(){if(!profile)return 0;return profile.ai_month===new Date().toISOString().slice(0,7)?profile.ai_used:0}
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const dh=n=>(+n||0).toLocaleString("fr-MA")+" DH";
 const ago=t=>{const d=Date.now()-t;return d<60*MIN?Math.max(1,Math.round(d/MIN))+" min":d<D?Math.round(d/3600000)+" h":Math.round(d/D)+" d"};
 const toast=m=>{const t=document.getElementById("toast");t.textContent=m;t.hidden=false;t.classList.remove("show");void t.offsetWidth;t.classList.add("show");clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2800)};
@@ -527,12 +541,12 @@ const TRL={"name":["nom","الاسم"],"phone":["téléphone","الهاتف"],"c
 const TRH=[["^We received your payment for <b>(.+?)</b> on (.+?)\\. Pro turns on as soon as we confirm it, usually within 12 hours\\.$","Nous avons reçu votre paiement pour <b>$1</b> le $2. Pro s'active dès que nous le confirmons, en général sous 12 heures.","توصلنا بالأداء ديالك مقابل <b>$1</b> بتاريخ $2. كيتفعل Pro ملي كنأكدوه، عادة فـ 12 ساعة."],["^Paste it in <b>New order</b> and tap <b>Smart fill</b>\\. Check the purple fields and save\\.$","Collez-le dans <b>Nouvelle commande</b> et touchez <b>Smart fill</b>. Vérifiez les champs violets et enregistrez.","الصقها في <b>طلبية جديدة</b> واضغط <b>Smart fill</b>. تحقق من الخانات البنفسجية واحفظ."],["^WhatsApp opens with the message ready, you just press send\\. When they answer \"Oui\", tap <b>Customer confirmed</b>\\.$","WhatsApp s'ouvre avec le message prêt, il suffit d'envoyer. Quand le client répond « Oui », touchez <b>Client a confirmé</b>.","يفتح واتساب والرسالة جاهزة، فقط اضغط إرسال. عندما يجيب الزبون «Oui»، اضغط <b>الزبون أكّد</b>."],["^This customer came from Instagram: copy the message, open Instagram and paste it in their chat\\. When they answer \"Oui\", tap <b>Customer confirmed</b>\\.$","Ce client vient d'Instagram : copiez le message, ouvrez Instagram et collez-le dans sa discussion. Quand il répond « Oui », touchez <b>Client a confirmé</b>.","هذا الزبون جاء من إنستغرام: انسخ الرسالة، افتح إنستغرام والصقها في المحادثة. عندما يجيب «Oui»، اضغط <b>الزبون أكّد</b>."],["^By creating a shop you accept the (<a [^>]+>)privacy policy</a>\\.$","En créant une boutique, vous acceptez la $1politique de confidentialité</a>.","بإنشاء متجر فإنك توافق على $1سياسة الخصوصية</a>."],["^We received your payment for <b>(.+?)</b> on (.+?)\\. Pro turns on as soon as it's checked, usually within 24 hours\\.$","Nous avons reçu votre paiement pour <b>$1</b> le $2. Pro s'active dès qu'il est vérifié, en général sous 24 heures.","توصلنا بأدائك مقابل <b>$1</b> بتاريخ $2. يتفعل Pro بمجرد التحقق، عادة خلال 24 ساعة."],["^The customer asked for <b>(.+?)</b>, which isn't in your products\\.$","Le client a demandé <b>$1</b>, qui n'est pas dans vos produits.","طلب الزبون <b>$1</b>، وهو غير موجود في منتجاتك."],["^Everything unlocked\\. Active until <b>(.+?)</b>\\.$","Tout est débloqué. Actif jusqu'au <b>$1</b>.","كل شيء مفتوح. مفعل حتى <b>$1</b>."],["^You are a helper on <b>(.+?)</b>\\. Orders and products you change are shared with the owner\\.$","Vous êtes aide sur <b>$1</b>. Les commandes et produits que vous modifiez sont partagés avec le propriétaire.","أنت مساعد في <b>$1</b>. الطلبيات والمنتجات التي تغيرها مشتركة مع صاحب المتجر."]].map(x=>[new RegExp(x[0]),x[1],x[2]]);
 let LANG=(()=>{try{const v=localStorage.getItem("talabia-lang");if(["fr","ar","en"].includes(v))return v}catch(e){}const n=(navigator.language||"").toLowerCase();return n.startsWith("ar")?"ar":n.startsWith("en")?"en":"fr"})();
 function tr1(k){const i=LANG==="fr"?0:1,d=TR[k];if(d)return d[i];
- for(const [re,fr,ar] of TRP){if(re.test(k)){return k.replace(re,i?ar:fr).replace(/\{t:([^}]*)\}/g,(m,x)=>tr1(x)??x).replace(/\{l:([^}]*)\}/g,(m,x)=>x.split(/,\s*/).map(w=>TRL[w]?TRL[w][i]:w).join(i?"، ":", "))}}
+ for(const [re,fr,ar] of TRP){if(re.test(k)){return k.replace(re,i?ar:fr).replace(/\{t:([^}]*)\}/g,(m,x)=>{const y=tr1(x);return y==null?x:y}).replace(/\{l:([^}]*)\}/g,(m,x)=>x.split(/,\s*/).map(w=>TRL[w]?TRL[w][i]:w).join(i?"، ":", "))}}
  return null}
 function tr(s){if(LANG==="en"||!s)return s;const k=s.trim();if(!k||!/[A-Za-z]/.test(k))return s;
  const lead=s.slice(0,s.indexOf(k)),trail=s.slice(s.indexOf(k)+k.length);
  let r=tr1(k);
- if(r==null){const parts=k.split(/(?<=[.!?])\s+/);if(parts.length>1){const rr=parts.map(p=>tr1(p)??p);if(rr.some((x,i)=>x!==parts[i]))r=rr.join(" ")}}
+ if(r==null){const parts=k.replace(/([.!?])\s+/g,"$1\u0001").split("\u0001");if(parts.length>1){const rr=parts.map(p=>{const y=tr1(p);return y==null?p:y});if(rr.some((x,i)=>x!==parts[i]))r=rr.join(" ")}}
  return r==null?s:lead+r+trail}
 const TR_SKIP="script,style,textarea,.msg,[data-notr],code";
 function trTree(root){
@@ -892,7 +906,7 @@ const DEFAULT_TEMPLATES=[
  {id:"t-fr",name:"Français",text:'Bonjour {name} 🌸\nMerci pour votre commande chez {shop} :\n• {qty}{product}\n• Total : {total} DH (paiement à la livraison)\n• Adresse : {address}{city}\n\nPouvez-vous confirmer la commande ? Répondez "Oui" 🙏'}];
 function templates(){const sh=SH_();if(!Array.isArray(sh.templates)||!sh.templates.length)sh.templates=JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));return sh.templates}
 function tplFor(id){const t=templates();return t.find(x=>x.id===id)||t.find(x=>x.id===SH_().tplDefault)||t[0]}
-function fillTpl(text,o){return text.replace(/\{(\w+)\}/g,(m,k)=>({name:o.name.split(" ")[0],fullname:o.name,shop:shop(),qty:o.qty>1?o.qty+" × ":"",product:o.product,total:o.price,city:o.city,address:o.address?o.address+", ":"",phone:o.phone,carrier:o.carrier||""}[k]??m))}
+function fillTpl(text,o){return text.replace(/\{(\w+)\}/g,(m,k)=>{const v=({name:o.name.split(" ")[0],fullname:o.name,shop:shop(),qty:o.qty>1?o.qty+" × ":"",product:o.product,total:o.price,city:o.city,address:o.address?o.address+", ":"",phone:o.phone,carrier:o.carrier||""})[k];return v==null?m:v})}
 let tplPick=null;
 function confirmMsg(o){return fillTpl(tplFor(tplPick).text,o)}
 
