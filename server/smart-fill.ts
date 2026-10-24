@@ -54,6 +54,21 @@ Message:
 // Claude (Anthropic). Fast model, no extended thinking, short answer. Reads text and pictures (not voice notes).
 const CLAUDE_MODEL = Deno.env.get("CLAUDE_MODEL") || "claude-haiku-5-5";
 const CLAUDE_IMAGES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const S = { type: ["string", "null"] };
+// Claude must answer through this "tool", so the answer is always a valid JSON object
+const ORDER_TOOL = {
+  name: "save_order",
+  description: "Save the order read from the customer's message.",
+  input_schema: {
+    type: "object",
+    properties: {
+      name: S, phone: S, city: S, address: S,
+      items: { type: "array", items: { type: "object", properties: { productId: { type: "string" }, qty: { type: "integer" } }, required: ["productId"] } },
+      productAsked: S, note: S, heard: S,
+    },
+    required: ["items"],
+  },
+};
 async function askClaude(prompt: string, media: { mime: string; data: string } | null) {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return { error: "no_key" };
@@ -66,13 +81,16 @@ async function askClaude(prompt: string, media: { mime: string; data: string } |
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 800, messages: [{ role: "user", content }] }),
+      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 1024, tools: [ORDER_TOOL], tool_choice: { type: "tool", name: "save_order" }, messages: [{ role: "user", content }] }),
       signal: AbortSignal.timeout(15000),
     });
     console.log(`smart-fill: ${CLAUDE_MODEL} -> ${r.status} in ${Date.now() - t0} ms`);
     if (!r.ok) { console.error("Claude error", r.status, (await r.text()).slice(0, 300)); return { error: "ai_failed", status: r.status }; }
     const out = await r.json();
+    const tool = (out.content || []).find((b: { type: string }) => b.type === "tool_use");
+    if (tool && tool.input && typeof tool.input === "object") return { text: JSON.stringify(tool.input) };
     const text = (out.content || []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
+    console.log("smart-fill: Claude gave no tool answer, stop_reason", out.stop_reason);
     return { text };
   } catch (_e) {
     console.log(`smart-fill: ${CLAUDE_MODEL} timed out after ${Date.now() - t0} ms`);
@@ -177,9 +195,13 @@ Deno.serve(async (req) => {
       ai = "error" in g && g.error === "no_key" && ai.error !== "no_key" ? ai : g;
     }
     if ("error" in ai) return reply(ai, ai.error === "no_key" ? 500 : 502);
-    let result = null;
-    const answer = ai.text || "";
-    try { result = JSON.parse(answer); } catch { const m = answer.match(/\{[\s\S]*\}/); if (m) { try { result = JSON.parse(m[0]); } catch { /* ignore */ } } }
+    const parse = (answer: string) => {
+      try { return JSON.parse(answer); } catch { const m = answer.match(/\{[\s\S]*\}/); if (m) { try { return JSON.parse(m[0]); } catch { /* ignore */ } } }
+      console.error("smart-fill: unreadable answer:", answer.slice(0, 400));
+      return null;
+    };
+    let result = parse(ai.text || "");
+    if (!result) { const g = await askGemini(prompt, media); if (!("error" in g)) result = parse(g.text || ""); } // second chance
     if (!result) return reply({ error: "unreadable" }, 502);
     // Older app versions read one product: keep productId/qty filled from the first item
     if (Array.isArray(result.items) && result.items.length && !result.productId) { result.productId = result.items[0].productId; result.qty = result.items[0].qty; }
