@@ -1,6 +1,6 @@
-// Talabia AI Smart fill (Google Gemini).
+// Talabia AI Smart fill: Claude Haiku first (secret ANTHROPIC_API_KEY), Google Gemini as backup (secret GEMINI_API_KEY).
 // Reads a customer's message — pasted text, a screenshot or a WhatsApp voice note — and returns the order fields.
-// Needs the secret GEMINI_API_KEY (Supabase → Edge Functions → Secrets).
+// Needs the secret ANTHROPIC_API_KEY and/or GEMINI_API_KEY (Supabase → Edge Functions → Secrets). Optional CLAUDE_MODEL.
 // Optional secret GEMINI_MODEL to force a model; otherwise the models below are tried in order.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -50,6 +50,35 @@ Reply with ONLY one JSON object and nothing else:
 Do not invent anything: use null when something is not in the order.${message.trim() ? `
 Message:
 """${message}"""` : ""}`;
+}
+
+// Claude (Anthropic). Fast model, no extended thinking, short answer. Reads text and pictures (not voice notes).
+const CLAUDE_MODEL = Deno.env.get("CLAUDE_MODEL") || "claude-haiku-5-5";
+const CLAUDE_IMAGES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+async function askClaude(prompt: string, media: { mime: string; data: string } | null) {
+  const key = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!key) return { error: "no_key" };
+  if (media && !CLAUDE_IMAGES.includes(media.mime)) return { error: "media_type" };
+  const content: unknown[] = [];
+  if (media) content.push({ type: "image", source: { type: "base64", media_type: media.mime, data: media.data } });
+  content.push({ type: "text", text: prompt });
+  const t0 = Date.now();
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 700, temperature: 0, messages: [{ role: "user", content }] }),
+      signal: AbortSignal.timeout(15000),
+    });
+    console.log(`smart-fill: ${CLAUDE_MODEL} -> ${r.status} in ${Date.now() - t0} ms`);
+    if (!r.ok) { console.error("Claude error", r.status, (await r.text()).slice(0, 300)); return { error: "ai_failed", status: r.status }; }
+    const out = await r.json();
+    const text = (out.content || []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
+    return { text };
+  } catch (_e) {
+    console.log(`smart-fill: ${CLAUDE_MODEL} timed out after ${Date.now() - t0} ms`);
+    return { error: "ai_failed", status: 504 };
+  }
 }
 
 async function askGemini(prompt: string, media: { mime: string; data: string } | null) {
@@ -141,10 +170,17 @@ Deno.serve(async (req) => {
     if (!message.trim() && !media) return reply({ error: "empty" }, 400);
     const kind = media ? (media.mime.startsWith("image/") ? "image" : "audio") : "text";
 
-    const ai = await askGemini(buildPrompt(message, catalog, kind), media);
+    const prompt = buildPrompt(message, catalog, kind);
+    let ai: { text?: string; error?: string; status?: number } = await askClaude(prompt, media);
+    if ("error" in ai) {
+      const g = await askGemini(prompt, media);
+      // keep the Claude answer's reason if Gemini isn't set up either
+      ai = "error" in g && g.error === "no_key" && ai.error !== "no_key" ? ai : g;
+    }
     if ("error" in ai) return reply(ai, ai.error === "no_key" ? 500 : 502);
     let result = null;
-    try { result = JSON.parse(ai.text); } catch { const m = ai.text.match(/\{[\s\S]*\}/); if (m) { try { result = JSON.parse(m[0]); } catch { /* ignore */ } } }
+    const answer = ai.text || "";
+    try { result = JSON.parse(answer); } catch { const m = answer.match(/\{[\s\S]*\}/); if (m) { try { result = JSON.parse(m[0]); } catch { /* ignore */ } } }
     if (!result) return reply({ error: "unreadable" }, 502);
 
     // Count this read
