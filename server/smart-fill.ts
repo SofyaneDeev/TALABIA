@@ -1,5 +1,6 @@
 // Talabia AI Smart fill: Claude Haiku first (secret ANTHROPIC_API_KEY), Google Gemini as backup (secret GEMINI_API_KEY).
 // Reads a customer's message — pasted text, a screenshot or a WhatsApp voice note — and returns the order fields.
+// With mode "products" it reads a pasted price list instead and returns { products: [{ name, price, stock, words }] }.
 // Needs the secret ANTHROPIC_API_KEY and/or GEMINI_API_KEY (Supabase → Edge Functions → Secrets). Optional CLAUDE_MODEL.
 // Optional secret GEMINI_MODEL to force a model; otherwise the models below are tried in order.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -69,7 +70,29 @@ const ORDER_TOOL = {
     required: ["items"],
   },
 };
-async function askClaude(prompt: string, media: { mime: string; data: string } | null) {
+// "Add many products at once": read a pasted price list
+const PRODUCTS_TOOL = {
+  name: "save_products",
+  description: "Save the products read from the seller's price list.",
+  input_schema: {
+    type: "object",
+    properties: {
+      products: { type: "array", items: { type: "object", properties: { name: { type: "string" }, price: { type: ["number", "null"] }, stock: { type: ["integer", "null"] }, words: S }, required: ["name"] } },
+    },
+    required: ["products"],
+  },
+};
+function listPrompt(text: string) {
+  return `A small online shop in Morocco pasted its price list. Extract every product.
+The text can mix French, Moroccan Darija (Latin letters or Arabic script), Arabic and English, with typos, emojis and any layout.
+For each product give: "name" (short product name as the seller wrote it, without price or stock), "price" (price in DH as a number, or null), "stock" (how many in stock, or null), "words" (other words customers may use for it, comma separated, or null).
+One entry per product, in the order of the list. Do not invent products or prices.
+Reply as JSON: {"products":[{"name":...,"price":...,"stock":...,"words":...}]}
+List:
+"""${text}"""`;
+}
+
+async function askClaude(prompt: string, media: { mime: string; data: string } | null, tool: typeof ORDER_TOOL | typeof PRODUCTS_TOOL = ORDER_TOOL) {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return { error: "no_key" };
   if (media && !CLAUDE_IMAGES.includes(media.mime)) return { error: "media_type" };
@@ -81,14 +104,14 @@ async function askClaude(prompt: string, media: { mime: string; data: string } |
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 1024, tools: [ORDER_TOOL], tool_choice: { type: "tool", name: "save_order" }, messages: [{ role: "user", content }] }),
-      signal: AbortSignal.timeout(15000),
+      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: tool.name === "save_products" ? 8000 : 1024, tools: [tool], tool_choice: { type: "tool", name: tool.name }, messages: [{ role: "user", content }] }),
+      signal: AbortSignal.timeout(tool.name === "save_products" ? 45000 : 15000),
     });
     console.log(`smart-fill: ${CLAUDE_MODEL} -> ${r.status} in ${Date.now() - t0} ms`);
     if (!r.ok) { console.error("Claude error", r.status, (await r.text()).slice(0, 300)); return { error: "ai_failed", status: r.status }; }
     const out = await r.json();
-    const tool = (out.content || []).find((b: { type: string }) => b.type === "tool_use");
-    if (tool && tool.input && typeof tool.input === "object") return { text: JSON.stringify(tool.input) };
+    const used = (out.content || []).find((b: { type: string }) => b.type === "tool_use");
+    if (used && used.input && typeof used.input === "object") return { text: JSON.stringify(used.input) };
     const text = (out.content || []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
     console.log("smart-fill: Claude gave no tool answer, stop_reason", out.stop_reason);
     return { text };
@@ -175,10 +198,11 @@ Deno.serve(async (req) => {
 
     // The message (text and/or a photo or voice note) and the seller's products
     const body = await req.json().catch(() => ({}));
-    const message = typeof body.message === "string" ? body.message.slice(0, 2500) : "";
+    const listMode = body.mode === "products";
+    const message = typeof body.message === "string" ? body.message.slice(0, listMode ? 6000 : 2500) : "";
     const catalog = Array.isArray(body.catalog) ? body.catalog.slice(0, 300) : [];
     let media: { mime: string; data: string } | null = null;
-    if (body.media && typeof body.media.data === "string" && typeof body.media.mime === "string") {
+    if (!listMode && body.media && typeof body.media.data === "string" && typeof body.media.mime === "string") {
       const mime = MEDIA_TYPES[body.media.mime.toLowerCase().split(";")[0].trim()];
       if (!mime) return reply({ error: "media_type" }, 400);
       if (body.media.data.length * 0.75 > MAX_MEDIA_BYTES) return reply({ error: "media_too_big" }, 413);
@@ -187,8 +211,8 @@ Deno.serve(async (req) => {
     if (!message.trim() && !media) return reply({ error: "empty" }, 400);
     const kind = media ? (media.mime.startsWith("image/") ? "image" : "audio") : "text";
 
-    const prompt = buildPrompt(message, catalog, kind);
-    let ai: { text?: string; error?: string; status?: number } = await askClaude(prompt, media);
+    const prompt = listMode ? listPrompt(message) : buildPrompt(message, catalog, kind);
+    let ai: { text?: string; error?: string; status?: number } = await askClaude(prompt, listMode ? null : media, listMode ? PRODUCTS_TOOL : ORDER_TOOL);
     if ("error" in ai) {
       const g = await askGemini(prompt, media);
       // keep the Claude answer's reason if Gemini isn't set up either
@@ -203,6 +227,7 @@ Deno.serve(async (req) => {
     let result = parse(ai.text || "");
     if (!result) { const g = await askGemini(prompt, media); if (!("error" in g)) result = parse(g.text || ""); } // second chance
     if (!result) return reply({ error: "unreadable" }, 502);
+    if (listMode && !Array.isArray(result.products)) return reply({ error: "unreadable" }, 502);
     // Older app versions read one product: keep productId/qty filled from the first item
     if (Array.isArray(result.items) && result.items.length && !result.productId) { result.productId = result.items[0].productId; result.qty = result.items[0].qty; }
 
