@@ -1,0 +1,3 @@
+-- Product photos (applied 2026-10-24): public bucket "products", folder = shop owner id.
+-- Owner or a team helper can upload, replace and delete; public URLs are readable by anyone.
+-- See migration "product_photos_bucket": bucket products (2 MB, jpeg/png/webp), function can_edit_shop_folder(folder), 3 storage policies.
