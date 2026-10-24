@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Talabia – Nouveau mot de passe</title>
+<style>
+:root{--g:#0f6b4f;--gs:#dcefe6;--ink:#1b1d1a;--mut:#64685f;--line:#e2e1da;--red:#c2412d;--reds:#f9e1dc;--bg:#f3f2ee}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:32px 16px}
+main{width:100%;max-width:420px;display:flex;flex-direction:column;gap:18px}
+.logo{font-weight:800;font-size:34px;color:var(--g);letter-spacing:-.5px}.logo i{color:#e9a828;font-style:normal}
+.langs{display:flex;gap:6px;justify-content:flex-end}
+.langs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+.langs button[aria-pressed=true]{background:var(--g);border-color:var(--g);color:#fff}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:22px}
+label{font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}
+input{width:100%;font:inherit;padding:13px 14px;border:1px solid var(--line);border-radius:14px;margin-top:6px}
+input:focus{outline:2px solid var(--g);outline-offset:0;border-color:var(--g)}
+button.main,a.main{display:block;text-align:center;width:100%;border:0;border-radius:999px;padding:14px;background:var(--g);color:#fff;font:inherit;font-weight:700;cursor:pointer;text-decoration:none}
+button.main:disabled{opacity:.6}
+.msg{padding:10px 12px;border-radius:12px;font-weight:600;font-size:14.5px}
+.err{background:var(--reds);color:var(--red)}.ok{background:var(--gs);color:var(--g)}
+.hint{color:var(--mut);font-size:14px;margin:0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <div class="langs"><button data-l="fr">Français</button><button data-l="ar">العربية</button><button data-l="en">English</button></div>
+ <div class="logo">Talabia<i>.</i></div>
+ <div class="card" id="form">
+  <h1 data-t="title"></h1>
+  <p class="hint" data-t="intro"></p>
+  <div><label for="p1" data-t="p1"></label><input id="p1" type="password" autocomplete="new-password"></div>
+  <div><label for="p2" data-t="p2"></label><input id="p2" type="password" autocomplete="new-password"></div>
+  <div class="msg err" id="err" hidden></div>
+  <button class="main" id="go" data-t="save"></button>
+ </div>
+ <div class="card" id="done" hidden>
+  <div class="msg ok" data-t="done"></div>
+  <a class="main" href="https://sofyanedeev.github.io/TALABIA/app/" data-t="open"></a>
+ </div>
+</main>
+<script>
+const URL_="https://ggttwxcwlxjedlphgqvm.supabase.co",ANON="sb_publishable_4h5LHbtPTf8wn3dC1FDcug_tWkvxA3M";
+const T={
+ fr:{title:"Nouveau mot de passe",intro:"Choisissez un nouveau mot de passe pour votre boutique Talabia.",p1:"Nouveau mot de passe",p2:"Répétez le mot de passe",save:"Enregistrer le mot de passe",saving:"Enregistrement…",short:"Utilisez au moins 6 caractères.",diff:"Les deux mots de passe ne sont pas identiques.",bad:"Ce lien n'est plus valable. Retournez dans Talabia et demandez un nouveau lien.",net:"Pas de connexion internet. Vérifiez-la et réessayez.",fail:"Une erreur est survenue. Réessayez dans un instant.",done:"Votre mot de passe a été changé. Ouvrez Talabia et connectez-vous avec votre nouveau mot de passe.",open:"Ouvrir Talabia"},
+ ar:{title:"كلمة مرور جديدة",intro:"اختر كلمة مرور جديدة لمتجرك في Talabia.",p1:"كلمة المرور الجديدة",p2:"أعد كتابة كلمة المرور",save:"حفظ كلمة المرور",saving:"جارٍ الحفظ…",short:"استعمل 6 أحرف على الأقل.",diff:"كلمتا المرور غير متطابقتين.",bad:"هذا الرابط لم يعد صالحاً. ارجع إلى Talabia واطلب رابطاً جديداً.",net:"لا يوجد اتصال بالإنترنت. تحقق منه وحاول مرة أخرى.",fail:"حدث خطأ. حاول بعد قليل.",done:"تم تغيير كلمة المرور. افتح Talabia وسجّل الدخول بكلمة المرور الجديدة.",open:"افتح Talabia"},
+ en:{title:"New password",intro:"Choose a new password for your Talabia shop.",p1:"New password",p2:"Repeat the password",save:"Save password",saving:"Saving…",short:"Use at least 6 characters.",diff:"The two passwords don't match.",bad:"This link doesn't work anymore. Go back to Talabia and ask for a new link.",net:"No internet connection. Check it and try again.",fail:"Something went wrong. Try again in a moment.",done:"Your password has been changed. Open Talabia and log in with your new password.",open:"Open Talabia"}
+};
+const q=new URLSearchParams(location.search),tok=q.get("t")||"";
+let L=["fr","ar","en"].includes(q.get("l"))?q.get("l"):"fr";
+const $=id=>document.getElementById(id);
+function paint(){document.documentElement.lang=L;document.documentElement.dir=L==="ar"?"rtl":"ltr";
+ document.querySelectorAll("[data-t]").forEach(e=>e.textContent=T[L][e.dataset.t]);
+ document.querySelectorAll("[data-l]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.l===L))}
+function err(k){const e=$("err");e.textContent=T[L][k];e.hidden=false}
+document.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{L=b.dataset.l;paint()});
+paint();
+if(!tok){err("bad");$("go").disabled=true}
+let busy=false;
+$("go").onclick=async()=>{
+ if(busy)return;$("err").hidden=true;
+ const a=$("p1").value,b=$("p2").value;
+ if(a.length<6)return err("short");if(a!==b)return err("diff");
+ busy=true;const g=$("go");g.disabled=true;g.textContent=T[L].saving;
+ try{
+  const v=await fetch(URL_+"/auth/v1/verify",{method:"POST",headers:{apikey:ANON,"content-type":"application/json"},body:JSON.stringify({type:"recovery",token_hash:tok})});
+  const s=await v.json().catch(()=>({}));
+  if(!v.ok||!s.access_token){busy=false;g.disabled=false;g.textContent=T[L].save;return err("bad")}
+  const u=await fetch(URL_+"/auth/v1/user",{method:"PUT",headers:{apikey:ANON,Authorization:"Bearer "+s.access_token,"content-type":"application/json"},body:JSON.stringify({password:a})});
+  if(!u.ok){busy=false;g.disabled=false;g.textContent=T[L].save;return err("fail")}
+  $("form").hidden=true;$("done").hidden=false;
+ }catch(e){busy=false;g.disabled=false;g.textContent=T[L].save;err("net")}
+};
+</script>
+</body>
+</html>
