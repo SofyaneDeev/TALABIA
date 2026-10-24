@@ -42,9 +42,8 @@ Reply with ONLY one JSON object and nothing else:
  "phone": Moroccan number as 10 digits starting with 05, 06 or 07 (convert +212 or 00212 to 0) or null,
  "city": Moroccan city in its usual French spelling (e.g. Casablanca, Fès, Tétouan, Marrakech) or null,
  "address": delivery address without the city and name: neighborhood (hay/quartier), street (zanqa/rue/bd), building, apartment, lot, number, landmark — or null,
- "productId": the id of the catalog product the customer wants, or null if none matches,
- "productAsked": what the customer asked for in their own words if no catalog product matches, else null,
- "qty": number of items (Darija: wa7d=1, joj/jouj/zouj=2, tlata=3, rb3a=4), default 1,
+ "items": EVERY catalog product the customer wants, as a list of {"productId": the catalog id, "qty": how many (Darija: wa7d=1, joj/jouj/zouj=2, tlata=3, rb3a=4; default 1)} — one entry per different product, [] if none matches,
+ "productAsked": what the customer asked for in their own words when a product is not in the catalog, else null,
  "note": short useful details for the seller such as size, color, delivery time or a question the customer asked, else null,
  "heard": ${kind === "text" ? "null" : "the customer's words as you read or heard them, written in Latin letters the way Moroccans text (max 400 characters)"}}
 Do not invent anything: use null when something is not in the order.${message.trim() ? `
@@ -67,7 +66,7 @@ async function askClaude(prompt: string, media: { mime: string; data: string } |
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 700, temperature: 0, messages: [{ role: "user", content }] }),
+      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 800, messages: [{ role: "user", content }] }),
       signal: AbortSignal.timeout(15000),
     });
     console.log(`smart-fill: ${CLAUDE_MODEL} -> ${r.status} in ${Date.now() - t0} ms`);
@@ -182,6 +181,8 @@ Deno.serve(async (req) => {
     const answer = ai.text || "";
     try { result = JSON.parse(answer); } catch { const m = answer.match(/\{[\s\S]*\}/); if (m) { try { result = JSON.parse(m[0]); } catch { /* ignore */ } } }
     if (!result) return reply({ error: "unreadable" }, 502);
+    // Older app versions read one product: keep productId/qty filled from the first item
+    if (Array.isArray(result.items) && result.items.length && !result.productId) { result.productId = result.items[0].productId; result.qty = result.items[0].qty; }
 
     // Count this read
     await admin.from("profiles").update({ ai_month: month, ai_used: used + 1 }).eq("id", user.id);
