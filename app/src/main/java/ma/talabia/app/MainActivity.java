@@ -136,6 +136,20 @@ public class MainActivity extends Activity {
         } catch (Throwable ignored) { }
     }
 
+    private boolean setBarIcons(Window window) {
+        if (Build.VERSION.SDK_INT < 30) return true;
+        try {
+            WindowInsetsController c = window.getInsetsController();
+            if (c == null) c = window.getDecorView().getWindowInsetsController();
+            if (c == null) return false;
+            c.setSystemBarsAppearance(WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     private void setUpApp(Bundle savedInstanceState) {
         Window window = getWindow();
 
@@ -163,12 +177,11 @@ public class MainActivity extends Activity {
                 v.setPadding(bars.left, 0, bars.right, 0);
                 return WindowInsets.CONSUMED;
             });
-            WindowInsetsController c = window.getInsetsController();
-            if (c != null) {
-                // Light icons on the green status bar, dark icons on the white navigation bar.
-                c.setSystemBarsAppearance(WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
-                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
-            }
+            // Light icons on the green status bar, dark icons on the white navigation bar.
+            // On Android 11 the window's decor view may not exist yet: create it first, never crash over icon colours,
+            // and try again once the screen is shown.
+            window.getDecorView();
+            if (!setBarIcons(window)) root.post(() -> setBarIcons(window));
         } else {
             window.setStatusBarColor(GREEN);
         }
